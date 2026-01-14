@@ -12,6 +12,12 @@ const routes = [
         meta: { requiresAuth: true },
     },
     { path: '/test', component: () => import('@/views/testView.vue') },
+    {
+        path: '/layout/:houseId',
+        component: () => import('@/views/layout/LayoutView.vue'),
+        meta: { requiresAuth: true },
+    },
+
 ]
 
 const router = createRouter({

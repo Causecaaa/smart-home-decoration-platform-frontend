@@ -1,140 +1,279 @@
 <template>
-  <div class="layout-card">
-    <!-- 步骤1: 布局意图 -->
-    <div v-show="step === 1">
-      <div class="input-row">
-        <span class="label">布局意图</span>
-        <div class="input-col">
-          <select v-model="form.layoutIntent">
-            <option value="KEEP_ORIGINAL">保留现有户型</option>
-            <option value="REDESIGN">需要重新设计</option>
-          </select>
+  <TopNav class="top-nav" />
+  <div class="houses-page">
+
+    <div class="header">
+      <h2>我的房屋</h2>
+      <!-- 新增按钮常驻 -->
+      <button class="add-btn" @click="openDialog('add')">新增房屋</button>
+    </div>
+
+    <div class="house-list">
+      <div
+          class="house-item"
+          v-for="house in houses"
+          :key="house.houseId"
+      >
+        <h3>{{ house.city }} * {{ house.communityName }}</h3>
+        <p> {{ house.layoutType }} | {{ house.area }}㎡</p>
+        <p>{{ house.buildingNo }}栋 · {{ house.unitNo }}单元 · {{ house.roomNo }}</p>
+        <p>装修类型：{{ DECORATION_MAP[house.decorationType] || house.decorationType }}</p>
+        <p>楼层：{{ house.floorCount }}</p>
+
+        <!-- ⭐ 主行动：布局设计 -->
+        <button class="design-btn" @click="goLayoutDesign(house.houseId)">
+          布局设计
+        </button>
+
+        <!-- 编辑/删除按钮 -->
+        <div class="actions">
+          <button @click="openDialog('edit', house)">编辑</button>
+          <button class="danger" @click="confirmDelete(house.houseId)">删除</button>
         </div>
       </div>
-      <div class="input-row" v-if="form.layoutIntent === 'REDESIGN'">
-        <span class="label" style="padding-top: 20px">设计需求</span>
-        <div class="input-col" style="padding-top: 20px">
-          <textarea v-model="form.redesignNotes" placeholder="简单描述你的设计需求（可选）" rows="3"></textarea>
+
+      <!-- 房屋列表为空时显示 -->
+      <p v-if="houses.length === 0" class="no-house">
+        还没有房屋信息，快去新增吧～
+      </p>
+    </div>
+
+    <!-- 弹窗 -->
+    <div v-if="showDialog" class="overlay" @click.self="closeDialog">
+      <div class="modal">
+        <div class="modal-header">
+          <span>{{ dialogMode === 'edit' ? '编辑房屋' : '新增房屋' }}</span>
+          <span class="close" @click="closeDialog">×</span>
+        </div>
+
+        <div class="modal-body">
+          <HouseForm
+              v-if="showDialog"
+              :house="currentHouse"
+              @success="onFormSuccess"
+          />
+        </div>
+      </div>
+    </div>
+    <!-- ⭐ 布局设计弹窗 -->
+    <div v-if="showLayoutDialog" class="overlay" @click.self="showLayoutDialog = false">
+      <div class="modal">
+        <div class="modal-header">
+          <span>布局设计</span>
+          <span class="close" @click="showLayoutDialog = false">×</span>
+        </div>
+
+        <div class="modal-body">
+          <LayoutForm
+              :houseId="currentHouseId"
+              @success="onLayoutCreated"
+              @cancel="showLayoutDialog = false"
+          />
         </div>
       </div>
     </div>
 
-    <!-- 步骤2: 上传图片 -->
-    <div v-show="step === 2">
-      <h3>上传图片</h3>
-      <input type="file" multiple @change="handleFiles" />
-      <div class="preview">
-        <div v-for="(img, index) in form.images" :key="img.key" class="preview-item">
-          <img :src="img.url" />
-          <button @click="removeImage(index)">删除</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- 步骤3: 选择设计师 -->
-    <div v-show="step === 3 && form.layoutIntent === 'REDESIGN'">
-      <h3>选择设计师</h3>
-      <DesignerSelector
-          :designers="designers"
-          v-model="form.designerId"
-          @select="onDesignerSelected"
-      />
-    </div>
-
-    <!-- 底部导航 -->
-    <div class="form-footer">
-      <button v-if="!isLastStep" @click="nextStep">下一步</button>
-      <button v-else @click="submitForm">提交</button>
-    </div>
-
-    <!-- 小点指示 -->
-    <div class="dots">
-      <span v-for="n in totalSteps" :key="n" :class="{ active: step === n }"></span>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { reactive, ref, computed } from 'vue'
-import DesignerSelector from '../components/DesignerSelector.vue'
-import { getDesignerList } from '@/api/designer'
+import { ref, onMounted } from 'vue'
+import { showToast } from '@nutui/nutui'
+import TopNav from '@/layouts/TopNav.vue'
+import HouseForm from '@/components/house/HouseForm.vue'
+import { getHousesByUser, deleteHouse } from '@/api/house'
+import LayoutForm from '@/components/layout/LayoutForm.vue'
 
-const step = ref(1)
 
-const form = reactive({
-  layoutIntent: 'KEEP_ORIGINAL',
-  redesignNotes: '',
-  images: [],
-  designerId: ''
-})
+const DECORATION_MAP = { FULL: '全包', HALF: '半包', LOOSE: '散装' }
 
-const designers = ref([])
+const houses = ref([])
+const showDialog = ref(false)
+const dialogMode = ref('add')
+const currentHouse = ref(null)
 
-const totalSteps = computed(() => (form.layoutIntent === 'REDESIGN' ? 3 : 2))
-const isLastStep = computed(() => step.value === totalSteps.value)
+const showLayoutDialog = ref(false)
+const currentHouseId = ref(null)
 
-const nextStep = () => {
-  step.value++
-  if (step.value === 3) loadDesigners()
+const goLayoutDesign = (houseId) => {
+  currentHouseId.value = houseId
+  showLayoutDialog.value = true
 }
 
-const submitForm = () => {
-  console.log('提交数据:', form)
-  alert('表单已提交，查看控制台数据')
+const onLayoutCreated = (layout) => {
+  showLayoutDialog.value = false
+  currentHouseId.value = null
+
+  // 这里先占位，后面你再跳图片页 / 设计师页
+  console.log('layout created:', layout)
 }
 
-// 文件上传
-const handleFiles = (e) => {
-  const files = Array.from(e.target.files)
-  files.forEach(file => {
-    const url = URL.createObjectURL(file)
-    const key = file.name + file.lastModified + '_' + Math.random().toString(36).slice(2, 8)
-    form.images.push({ file, url, key })
-  })
-}
 
-const removeImage = (index) => {
-  form.images.splice(index, 1)
-}
-
-// 选择设计师回调
-const onDesignerSelected = (designer) => {
-  console.log('选中设计师:', designer)
-}
-
-// 请求后端设计师列表
-const loadDesigners = async () => {
+// 加载房屋列表
+const loadHouses = async () => {
   try {
-    const data = await getDesignerList()
-    designers.value = data.map(d => ({
-      id: d.userId,
-      name: d.name,
-      avatar: d.avatar,
-      shortBio: d.shortBio,
-      style: d.style,
-      experienceYears: d.experienceYears,
-      rating: d.rating,
-      orderCount: d.orderCount
-    }))
-    console.log('设计师列表加载完毕:', designers.value)
+    const res = await getHousesByUser()
+    houses.value = res
+    showToast.success('房屋列表加载成功')
   } catch (err) {
-    console.error('加载设计师失败', err)
+    houses.value = []
+    showToast.fail('加载房屋失败，请重试')
   }
 }
+
+// 打开弹窗
+const openDialog = (mode, house = null) => {
+  dialogMode.value = mode
+  currentHouse.value = house
+  showDialog.value = true
+}
+
+// 关闭弹窗
+const closeDialog = () => {
+  showDialog.value = false
+  currentHouse.value = null
+}
+
+// 删除房屋
+const confirmDelete = async (houseId) => {
+  if (confirm('确定要删除该房屋吗？')) {
+    try {
+      await deleteHouse(houseId)
+      houses.value = houses.value.filter(h => h.houseId !== houseId)
+      showToast.success('删除成功')
+    } catch (err) {
+      const msg = err.response?.data?.message || '删除失败，请重试'
+      showToast.fail(msg)
+    }
+  }
+}
+
+// 表单提交成功回调
+const onFormSuccess = async () => {
+  await loadHouses()
+  closeDialog()
+  showToast.success('操作成功')
+}
+
+onMounted(() => {
+  loadHouses()
+})
 </script>
 
+
+
 <style scoped>
-.layout-card { padding: 16px; background: #fff; border-radius: 12px; width: 500px; display: flex; flex-direction: column; gap: 12px; }
-.input-row { display: grid; grid-template-columns: 120px 1fr; gap: 12px; }
-.label { font-weight: bold; padding-top: 6px; }
-.input-col { display: flex; flex-direction: column; gap: 6px; }
-textarea, select, input { width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid #ccc; }
-.preview { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-.preview-item { position: relative; width: 80px; height: 80px; }
-.preview-item img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
-.preview-item button { position: absolute; top: 2px; right: 2px; background: rgba(255,0,0,0.7); border: none; color: #fff; border-radius: 4px; padding: 2px 4px; cursor: pointer; }
-.form-footer { display: flex; justify-content: space-between; margin-top: 16px; }
-.dots { display: flex; justify-content: center; gap: 6px; margin-top: 12px; }
-.dots span { width: 10px; height: 10px; border-radius: 50%; background: #ccc; display: inline-block; }
-.dots span.active { background: #409eff; }
+.houses-page {
+  padding: 24px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.add-btn {
+  margin-left: auto;
+  background: #409eff;
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
+
+.house-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.house-item {
+  width: 280px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.design-btn {
+  margin-top: 12px;
+  padding: 8px 0;
+  border-radius: 8px;
+  border: none;
+  background: linear-gradient(135deg, #409eff, #66b1ff);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.design-btn:hover {
+  opacity: 0.9;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.actions button {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  background: #f0f0f0;
+}
+
+.actions .danger {
+  background: #ffeaea;
+  color: #d93026;
+}
+
+
+.actions button:hover {
+  background: #e0e0e0;
+}
+
+.no-house {
+  width: 100%;
+  text-align: center;
+  color: #888;
+  margin-top: 40px;
+}
+
+/* 弹窗覆盖层 */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  font-weight: bold;
+  margin-bottom: 12px;
+}
+
+.modal-header .close {
+  cursor: pointer;
+  font-size: 20px;
+}
 </style>

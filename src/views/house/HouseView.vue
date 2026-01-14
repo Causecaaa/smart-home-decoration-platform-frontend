@@ -20,8 +20,8 @@
         <p>装修类型：{{ DECORATION_MAP[house.decorationType] || house.decorationType }}</p>
         <p>楼层：{{ house.floorCount }}</p>
 
-        <!-- ⭐ 主行动：布局设计 -->
-        <button class="design-btn" @click="goLayoutDesign(house.houseId)">
+        <!-- ⭐ 主行动：跳转布局页面 -->
+        <button class="design-btn" @click="goLayoutPage(house.houseId)">
           布局设计
         </button>
 
@@ -55,36 +55,19 @@
         </div>
       </div>
     </div>
-    <!-- ⭐ 布局设计弹窗 -->
-    <div v-if="showLayoutDialog" class="overlay" @click.self="showLayoutDialog = false">
-      <div class="modal">
-        <div class="modal-header">
-          <span>布局设计</span>
-          <span class="close" @click="showLayoutDialog = false">×</span>
-        </div>
-
-        <div class="modal-body">
-          <LayoutForm
-              :houseId="currentHouseId"
-              @success="onLayoutCreated"
-              @cancel="showLayoutDialog = false"
-          />
-        </div>
-      </div>
-    </div>
 
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { showToast } from '@nutui/nutui'
 import TopNav from '@/layouts/TopNav.vue'
 import HouseForm from '@/components/house/HouseForm.vue'
 import { getHousesByUser, deleteHouse } from '@/api/house'
-import LayoutForm from '@/components/layout/LayoutForm.vue'
 
-
+const router = useRouter()
 const DECORATION_MAP = { FULL: '全包', HALF: '半包', LOOSE: '散装' }
 
 const houses = ref([])
@@ -92,29 +75,16 @@ const showDialog = ref(false)
 const dialogMode = ref('add')
 const currentHouse = ref(null)
 
-const showLayoutDialog = ref(false)
-const currentHouseId = ref(null)
-
-const goLayoutDesign = (houseId) => {
-  currentHouseId.value = houseId
-  showLayoutDialog.value = true
+// 跳转布局页面
+const goLayoutPage = (houseId) => {
+  router.push({ path: `/layout/${houseId}` })
 }
-
-const onLayoutCreated = (layout) => {
-  showLayoutDialog.value = false
-  currentHouseId.value = null
-
-  // 这里先占位，后面你再跳图片页 / 设计师页
-  console.log('layout created:', layout)
-}
-
 
 // 加载房屋列表
 const loadHouses = async () => {
   try {
     const res = await getHousesByUser()
     houses.value = res
-    showToast.success('房屋列表加载成功')
   } catch (err) {
     houses.value = []
     showToast.fail('加载房屋失败，请重试')
@@ -136,15 +106,14 @@ const closeDialog = () => {
 
 // 删除房屋
 const confirmDelete = async (houseId) => {
-  if (confirm('确定要删除该房屋吗？')) {
-    try {
-      await deleteHouse(houseId)
-      houses.value = houses.value.filter(h => h.houseId !== houseId)
-      showToast.success('删除成功')
-    } catch (err) {
-      const msg = err.response?.data?.message || '删除失败，请重试'
-      showToast.fail(msg)
-    }
+  if (!confirm('确定要删除该房屋吗？')) return
+  try {
+    await deleteHouse(houseId)
+    houses.value = houses.value.filter(h => h.houseId !== houseId)
+    showToast.success('删除成功')
+  } catch (err) {
+    const msg = err.response?.data?.message || '删除失败，请重试'
+    showToast.fail(msg)
   }
 }
 
@@ -159,8 +128,6 @@ onMounted(() => {
   loadHouses()
 })
 </script>
-
-
 
 <style scoped>
 .houses-page {
@@ -232,7 +199,6 @@ onMounted(() => {
   background: #ffeaea;
   color: #d93026;
 }
-
 
 .actions button:hover {
   background: #e0e0e0;
