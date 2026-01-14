@@ -10,6 +10,12 @@ export const useUserStore = defineStore('user', {
         },
     }),
     actions: {
+        initFromStorage() {
+            const token = localStorage.getItem('token')
+            if (token) {
+                this.token = token
+            }
+        },
         login(data) {
             this.token = data.token
             this.user = data.user
@@ -17,14 +23,9 @@ export const useUserStore = defineStore('user', {
             localStorage.setItem('user', JSON.stringify(data.user))
         },
         logout() {
-            // 清空 Pinia 状态
             this.token = ''
             this.user = { userName:'', role:'', avatar_url:'' }
-
-            // 只清理登录信息
-            localStorage.removeItem('token')
-            localStorage.removeItem('user')
-        }
+            localStorage.clear()
+        },
     }
 })
-
