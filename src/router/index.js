@@ -1,4 +1,7 @@
+// router/index.js
 import { createRouter, createWebHistory } from 'vue-router'
+import { useUserStore } from '@/store/user'
+import { showToast } from '@nutui/nutui'
 
 const routes = [
     { path: '/', redirect: '/main' },
@@ -16,7 +19,14 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
-    console.log('🛡 beforeEach:', from.fullPath, '->', to.fullPath)
+    const userStore = useUserStore()
+
+    if (to.meta.requiresAuth && !userStore.token) {
+        showToast.warn('未登录，请先登录')
+        next('/main')
+        return
+    }
+
     next()
 })
 

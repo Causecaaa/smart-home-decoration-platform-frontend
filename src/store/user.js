@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia'
+import {defineStore} from "pinia";
 
 export const useUserStore = defineStore('user', {
     state: () => ({
@@ -10,12 +10,6 @@ export const useUserStore = defineStore('user', {
         },
     }),
     actions: {
-        initFromStorage() {
-            const token = localStorage.getItem('token')
-            if (token) {
-                this.token = token
-            }
-        },
         login(data) {
             this.token = data.token
             this.user = data.user
@@ -25,7 +19,14 @@ export const useUserStore = defineStore('user', {
         logout() {
             this.token = ''
             this.user = { userName:'', role:'', avatar_url:'' }
-            localStorage.clear()
+            localStorage.removeItem('token')
+            localStorage.removeItem('user')
         },
-    }
+        initFromStorage() {
+            const token = localStorage.getItem('token')
+            const user = localStorage.getItem('user')
+            if (token) this.token = token
+            if (user) this.user = JSON.parse(user)
+        },
+    },
 })
