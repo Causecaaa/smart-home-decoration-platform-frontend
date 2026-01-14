@@ -17,14 +17,14 @@ export const useUserStore = defineStore('user', {
             localStorage.setItem('user', JSON.stringify(data.user))
         },
         logout() {
+            // 清空 Pinia 状态
             this.token = ''
             this.user = { userName:'', role:'', avatar_url:'' }
-            localStorage.clear()
-        },
-        loadFromStorage() {
-            this.token = localStorage.getItem('token') || ''
-            const userStr = localStorage.getItem('user')
-            this.user = userStr ? JSON.parse(userStr) : { userName:'', role:'', avatar_url:'' }
+
+            // 只清理登录信息
+            localStorage.removeItem('token')
+            localStorage.removeItem('user')
         }
     }
 })
+
