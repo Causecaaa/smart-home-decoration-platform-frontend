@@ -62,7 +62,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useUserStore } from '@/store/user'
+import { useUserStore } from '@/stores/user'
 import LoginForm from '@/components/login/LoginForm.vue'
 import RegisterForm from '@/components/register/RegisterForm.vue'
 import { showToast } from '@nutui/nutui'

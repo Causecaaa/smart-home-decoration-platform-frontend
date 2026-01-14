@@ -20,10 +20,15 @@
         <p>装修类型：{{ DECORATION_MAP[house.decorationType] || house.decorationType }}</p>
         <p>楼层：{{ house.floorCount }}</p>
 
+        <!-- ⭐ 主行动：布局设计 -->
+        <button class="design-btn" @click="goLayoutDesign(house.houseId)">
+          布局设计
+        </button>
+
         <!-- 编辑/删除按钮 -->
         <div class="actions">
           <button @click="openDialog('edit', house)">编辑</button>
-          <button @click="confirmDelete(house.houseId)">删除</button>
+          <button class="danger" @click="confirmDelete(house.houseId)">删除</button>
         </div>
       </div>
 
@@ -50,6 +55,23 @@
         </div>
       </div>
     </div>
+    <!-- ⭐ 布局设计弹窗 -->
+    <div v-if="showLayoutDialog" class="overlay" @click.self="showLayoutDialog = false">
+      <div class="modal">
+        <div class="modal-header">
+          <span>布局设计</span>
+          <span class="close" @click="showLayoutDialog = false">×</span>
+        </div>
+
+        <div class="modal-body">
+          <LayoutForm
+              :houseId="currentHouseId"
+              @success="onLayoutCreated"
+              @cancel="showLayoutDialog = false"
+          />
+        </div>
+      </div>
+    </div>
 
   </div>
 </template>
@@ -60,6 +82,8 @@ import { showToast } from '@nutui/nutui'
 import TopNav from '@/layouts/TopNav.vue'
 import HouseForm from '@/components/house/HouseForm.vue'
 import { getHousesByUser, deleteHouse } from '@/api/house'
+import LayoutForm from '@/components/layout/LayoutForm.vue'
+
 
 const DECORATION_MAP = { FULL: '全包', HALF: '半包', LOOSE: '散装' }
 
@@ -67,6 +91,23 @@ const houses = ref([])
 const showDialog = ref(false)
 const dialogMode = ref('add')
 const currentHouse = ref(null)
+
+const showLayoutDialog = ref(false)
+const currentHouseId = ref(null)
+
+const goLayoutDesign = (houseId) => {
+  currentHouseId.value = houseId
+  showLayoutDialog.value = true
+}
+
+const onLayoutCreated = (layout) => {
+  showLayoutDialog.value = false
+  currentHouseId.value = null
+
+  // 这里先占位，后面你再跳图片页 / 设计师页
+  console.log('layout created:', layout)
+}
+
 
 // 加载房屋列表
 const loadHouses = async () => {
@@ -158,6 +199,20 @@ onMounted(() => {
   flex-direction: column;
   gap: 8px;
 }
+.design-btn {
+  margin-top: 12px;
+  padding: 8px 0;
+  border-radius: 8px;
+  border: none;
+  background: linear-gradient(135deg, #409eff, #66b1ff);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.design-btn:hover {
+  opacity: 0.9;
+}
 
 .actions {
   display: flex;
@@ -172,6 +227,12 @@ onMounted(() => {
   cursor: pointer;
   background: #f0f0f0;
 }
+
+.actions .danger {
+  background: #ffeaea;
+  color: #d93026;
+}
+
 
 .actions button:hover {
   background: #e0e0e0;

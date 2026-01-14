@@ -1,5 +1,5 @@
 <template>
-  <div class="login-card">
+  <div class="layout-card">
 
     <div class="input-row">
       <span class="label">邮箱</span>
@@ -39,7 +39,7 @@ import { reactive } from 'vue'
 import { showToast } from '@nutui/nutui'
 import StandardButton from '@/components/button/StandardButton.vue'
 import { loginUser } from '@/api/user'
-import { useUserStore } from '@/store/user'
+import { useUserStore } from '@/stores/user'
 
 const emit = defineEmits(['success'])
 const userStore = useUserStore()
@@ -104,7 +104,7 @@ const submit = async () => {
 </script>
 
 <style scoped>
-.login-card {
+.layout-card {
   width: 480px; /* PC端加宽 */
   padding: 0;
   display: flex;

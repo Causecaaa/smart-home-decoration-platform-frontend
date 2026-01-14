@@ -1,6 +1,6 @@
 // router/index.js
 import { createRouter, createWebHistory } from 'vue-router'
-import { useUserStore } from '@/store/user'
+import { useUserStore } from '@/stores/user'
 import { showToast } from '@nutui/nutui'
 
 const routes = [
@@ -11,6 +11,7 @@ const routes = [
         component: () => import('@/views/house/HouseView.vue'),
         meta: { requiresAuth: true },
     },
+    { path: '/test', component: () => import('@/views/testView.vue') },
 ]
 
 const router = createRouter({

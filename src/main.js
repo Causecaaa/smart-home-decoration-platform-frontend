@@ -5,7 +5,6 @@ import { createPinia } from 'pinia'
 import NutUI from '@nutui/nutui'
 import '@nutui/nutui/dist/style.css'
 
-console.log('🔥 main using router', router)
 
 
 const app = createApp(App)
