@@ -71,8 +71,9 @@ import StandardButton from '@/components/button/StandardButton.vue'
 import DesignerSelector from '@/components/DesignerSelector.vue'
 import { getDesignerList } from '@/api/designer'
 import { useLayoutFormStore } from '@/stores/layoutFormStore'
-import {createLayout} from "@/api/layout";
+import {createLayout, createLayoutDraft} from "@/api/layout";
 import {uploadLayoutImage} from "@/api/layoutImage";
+import {showToast} from "@nutui/nutui";
 
 // ✅ 顶层解构 props
 // eslint-disable-next-line vue/no-setup-props-destructure
@@ -143,9 +144,6 @@ const submitForm = async () => {
 
   if (store.form.layoutIntent === 'KEEP_ORIGINAL') {
     try {
-      console.log('click submitForm')
-      console.log('start submitKeepOriginal') // 确认打印
-
       // 1️⃣ 创建 layout
       const layoutData = {
         houseId: store.form.houseId,
@@ -154,10 +152,7 @@ const submitForm = async () => {
       }
 
       const res = await createLayout(layoutData)
-      console.log('createLayout 返回:', res)
-
       const layoutId = res.layoutId
-      console.log('layoutId:', layoutId)
 
       // 2️⃣ 循环上传图片
       for (const img of store.form.images) {
@@ -166,15 +161,35 @@ const submitForm = async () => {
           imageDesc: '', // 如果有描述可以用 img.desc
           imageType: 'STRUCTURE' // 后端需要的类型
         })
-        console.log('上传图片成功:', img.file.name)
       }
-
-      console.log('布局创建和图片上传全部完成')
       // emit 给父组件
       emit('success', { layoutId })
-
     } catch (err) {
-      console.error('提交 KEEP_ORIGINAL layout 出错', err)
+      showToast.fail('提交 KEEP_ORIGINAL layout 出错', err)
+    }
+  }
+  if(store.form.layoutIntent === 'REDESIGN'){
+    try{
+      const layoutData = {
+        houseId: store.form.houseId,
+        layoutIntent: store.form.layoutIntent,
+        redesignNotes: store.form.redesignNotes || null,
+        designerId : store.form.designerId,
+      }
+
+      const res = await createLayoutDraft(layoutData)
+      const layoutId = res.layoutId
+
+      for (const img of store.form.images) {
+        await uploadLayoutImage(layoutId, {
+          file: img.file,
+          imageDesc: '', // 如果有描述可以用 img.desc
+          imageType: 'STRUCTURE' // 后端需要的类型
+        })
+      }
+      emit('success', { layoutId })
+    }catch (err){
+      showToast.fail('提交 REDESIGN layout 出错', err)
     }
   }
 }

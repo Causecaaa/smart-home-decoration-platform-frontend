@@ -7,3 +7,10 @@ export function getDesignerList(params = {}) {
         params
     })
 }
+
+export function getDesignerForLayout(designerId) {
+    return request({
+        url: `/designer/${designerId}/layout`,
+        method: 'get'
+    })
+}

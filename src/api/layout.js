@@ -63,7 +63,7 @@ export function deleteLayout(layoutId) {
 /**
  * 用户确认布局方案
  */
-export function confirmLayout(layoutId) {
+export function confirmLayoutRequest(layoutId) {
     const token = localStorage.getItem('token')
     return request.put(`/house-layout/${layoutId}/confirm`, null, {
         headers: { Authorization: `Bearer ${token}` }
