@@ -1,6 +1,5 @@
 <template>
   <TopNav class="top-nav" />
-
   <div class="layouts-page" @click="closeAllDropdowns">
     <div class="header">
       <h2>房屋布局</h2>
@@ -8,215 +7,174 @@
     </div>
 
     <div class="layout-list">
-      <!-- 布局列表 -->
-      <div
-          class="layout-item"
-          v-for="layout in layouts"
-          :key="layout.layoutId"
-      >
+      <!-- 用户布局 -->
+      <div v-if="draftLayout" :class="['layout-item', { 'user-layout': true }]">
         <div class="layout-header">
           <h3>
-            布局意图：{{ LAYOUT_INTENT_MAP[layout.layoutIntent] }}
-            <span v-if="layout.version !== undefined">
-              - V{{ layout.version }}
+            布局意图：{{ LAYOUT_INTENT_MAP[draftLayout.layoutIntent] }}
+            <span v-if="draftLayout.version !== undefined">
+              - V{{ draftLayout.version }}
             </span>
           </h3>
 
-          <!-- 三个点 -->
-          <div
-              class="actions-wrapper"
-              @click.stop="toggleDropdown(layout.layoutId)"
-          >
+          <div class="actions-wrapper" @click.stop="toggleDropdown(draftLayout.layoutId)">
             <span class="dot-btn">⋮</span>
-            <div v-if="activeDropdownId === layout.layoutId" class="dropdown">
-              <button @click="confirmDelete(layout.layoutId)">
-                删除布局
-              </button>
+            <div v-if="activeDropdownId === draftLayout.layoutId" class="dropdown">
+              <button @click="confirmDelete(draftLayout.layoutId)">删除布局</button>
             </div>
-
           </div>
         </div>
 
-        <!-- ✅ 只有 draftLayout 显示设计师 -->
-        <p v-if="layout.isCurrent && draftLayout">
-          设计师：
-          {{ draftLayout.designerUsername }}
-          （{{ draftLayout.designerEmail }}）
+        <p v-if="draftLayout.designerUsername">
+          设计师：{{ draftLayout.designerUsername }}（{{ draftLayout.designerEmail }}）
         </p>
 
-        <p v-if="layout.redesignNotes">
-          设计需求：{{ layout.redesignNotes }}
+        <p v-if="draftLayout.redesignNotes">
+          设计需求：{{ draftLayout.redesignNotes }}
         </p>
 
-        <p>
-          状态：{{ LAYOUT_STATUS_MAP[layout.layoutStatus] }}
-        </p>
+        <p>状态：{{ LAYOUT_STATUS_MAP[draftLayout.layoutStatus] }}</p>
 
-        <!-- 图片列表 -->
         <div class="images">
-          <div
-              v-for="(img, index) in imageStore.images[layout.layoutId] || []"
-              :key="img.id ?? img.key ?? index"
-              class="image-wrapper"
-          >
-            <img
-                :src="img.url"
-                class="image"
-                @click="previewImage(img.file)"
-            />
-            <button
-                class="delete-btn"
-                @click.stop="removeImage(layout, img.id || img.key)"
-            >
-              ×
-            </button>
+          <div v-for="(img, index) in imageStore.images[draftLayout.layoutId] || []" :key="img.id ?? img.key ?? index" class="image-wrapper">
+            <img :src="img.url" class="image" @click="previewImage(img.file)" />
+            <button class="delete-btn" @click.stop="removeImage(draftLayout, img.id || img.key)">×</button>
           </div>
         </div>
 
-        <!-- 上传 -->
+        <!-- 上传图片 -->
         <label class="file-btn">
           新增图片
-          <input
-              type="file"
-              class="hidden-file-input"
-              @change="(e) => uploadImage(e, layout)"
-          />
+          <input type="file" class="hidden-file-input" @change="(e) => uploadImage(e, draftLayout)" />
         </label>
 
-          <button
-              v-if="layout._meta.confirmable"
-              @click="confirmLayout(layout.layoutId)"
-              class="btn"
-          >
-            确认布局
-          </button>
-
         <!-- 💰 订单状态区 -->
-        <div
-            v-if="layout._billMeta.visible"
-            class="bill-box"
-        >
+        <div class="bill-box">
           <div class="bill-title">💰 设计方案费用</div>
-
-          <!-- ① 未付定金 -->
-          <div v-if="layout._billMeta.payStatus === 'UNPAID'">
-            <p>总价：¥{{ layout._billMeta.amount }}</p>
-            <p>定金：¥{{ layout._billMeta.depositAmount }}</p>
-
-            <p class="bill-hint">
-              支付定金后，设计师将开始方案设计
-            </p>
-
-            <button
-                class="btn"
-                @click="payDeposit(layout._billMeta.billId)"
-            >
-              支付定金
-            </button>
+          <!-- 防止 _billMeta 为空 -->
+          <div v-if="draftLayout._billMeta?.payStatus === 'UNPAID'">
+            <p>总价：¥{{ draftLayout._billMeta?.amount }}</p>
+            <p>定金：¥{{ draftLayout._billMeta?.depositAmount }}</p>
+            <p class="bill-hint">支付定金后，设计师将开始方案设计</p>
+            <button class="btn" @click="payDeposit(draftLayout._billMeta?.billId)">支付定金</button>
           </div>
-
-          <!-- ② 已付定金，但还没确认方案 -->
-          <div
-              v-else-if="
-        layout._billMeta.payStatus === 'DEPOSIT_PAID' &&
-        layout.layoutStatus !== 'ARCHIVED'
-      "
-          >
-            <p>已支付定金：¥{{ layout._billMeta.depositAmount }}</p>
-            <p class="bill-hint">
-              设计师正在出方案，确认方案后需支付尾款
-            </p>
+          <div v-else-if="draftLayout._billMeta?.payStatus === 'DEPOSIT_PAID' && draftLayout.layoutStatus !== 'ARCHIVED'">
+            <p>已支付定金：¥{{ draftLayout._billMeta?.depositAmount }}</p>
+            <p class="bill-hint">设计师正在出方案，确认方案后需支付尾款</p>
           </div>
-
-          <!-- ③ 已确认方案，需要付尾款 -->
-          <div
-              v-else-if="
-        layout._billMeta.payStatus === 'DEPOSIT_PAID' &&
-        layout.layoutStatus === 'ARCHIVED'
-      "
-          >
-            <p>总价：¥{{ layout._billMeta.amount }}</p>
-            <p>已付定金：¥{{ layout._billMeta.depositAmount }}</p>
-            <p>
-              需支付尾款：¥{{
-                layout._billMeta.amount - layout._billMeta.depositAmount
-              }}
-            </p>
-
-            <p class="bill-hint">
-              方案已确认，请支付尾款以完成设计流程
-            </p>
-
-            <button
-                class="btn"
-                @click="payFinal(layout._billMeta.billId)"
-            >
-              支付尾款
-            </button>
+          <div v-else-if="draftLayout._billMeta?.payStatus === 'DEPOSIT_PAID' && draftLayout.layoutStatus === 'ARCHIVED'">
+            <p>总价：¥{{ draftLayout._billMeta?.amount }}</p>
+            <p>已付定金：¥{{ draftLayout._billMeta?.depositAmount }}</p>
+            <p>需支付尾款：¥{{ draftLayout._billMeta?.amount - draftLayout._billMeta?.depositAmount }}</p>
+            <p class="bill-hint">方案已确认，请支付尾款以完成设计流程</p>
+            <button class="btn" @click="payFinal(draftLayout._billMeta?.billId)">支付尾款</button>
           </div>
-
-          <!-- ④ 已全部支付 -->
-          <div v-else-if="layout._billMeta.payStatus === 'PAID'">
-            <p>总价：¥{{ layout._billMeta.amount }}</p>
+          <div v-else-if="draftLayout._billMeta.payStatus === 'PAID'">
+            <p>总价：¥{{ draftLayout._billMeta.amount }}</p>
             <p class="bill-hint success">
               ✅ 费用已全部结清
             </p>
           </div>
         </div>
+      </div>
 
+      <!-- 设计师方案布局 -->
+      <div class="designer-layouts-wrapper">
+        <div v-for="layout in designerLayouts" :key="layout.layoutId" :class="['layout-item', { 'designer-layout': true }]">
+          <div class="layout-header">
+            <h3>
+              布局意图：{{ LAYOUT_INTENT_MAP[layout.layoutIntent] }}
+              <span v-if="layout.version !== undefined">
+                - V{{ layout.version }}
+              </span>
+            </h3>
+          </div>
 
+          <p v-if="layout.redesignNotes">设计需求：{{ layout.redesignNotes }}</p>
+          <p>状态：{{ LAYOUT_STATUS_MAP[layout.layoutStatus] }}</p>
+
+          <div class="images">
+            <div v-for="(img, index) in imageStore.images[layout.layoutId] || []" :key="img.id ?? img.key ?? index" class="image-wrapper">
+              <img :src="img.url" class="image" @click="previewImage(img.file)" />
+            </div>
+          </div>
+
+          <button @click="confirmLayout(layout)" class="btn">
+            确认布局
+          </button>
+        </div>
+      </div>
+
+      <!-- 保留原布局 -->
+      <div v-if="keepOriginalLayout" :class="['layout-item', { 'designer-layout': true }]">
+        <div class="layout-header">
+          <h3>
+            布局意图：{{ LAYOUT_INTENT_MAP[keepOriginalLayout.layoutIntent] }}
+            <span v-if="keepOriginalLayout.version !== undefined">
+              - V{{ keepOriginalLayout.version }}
+            </span>
+          </h3>
+
+          <div class="actions-wrapper" @click.stop="toggleDropdown(keepOriginalLayout.layoutId)">
+            <span class="dot-btn">⋮</span>
+            <div v-if="activeDropdownId === keepOriginalLayout.layoutId" class="dropdown">
+              <button @click="confirmDelete(keepOriginalLayout.layoutId)">删除布局</button>
+            </div>
+          </div>
+        </div>
+
+        <p>状态：{{ LAYOUT_STATUS_MAP[keepOriginalLayout.layoutStatus] }}</p>
+
+        <div class="images">
+          <div v-for="(img, index) in imageStore.images[keepOriginalLayout.layoutId] || []" :key="img.id ?? img.key ?? index" class="image-wrapper">
+            <img :src="img.url" class="image" @click="previewImage(img.file)" />
+            <button class="delete-btn" @click.stop="removeImage(keepOriginalLayout, img.id || img.key)">×</button>
+          </div>
+        </div>
+
+        <!-- 上传图片 -->
+        <label class="file-btn">
+          新增图片
+          <input type="file" class="hidden-file-input" @change="(e) => uploadImage(e, keepOriginalLayout)" />
+        </label>
+
+        <button @click="confirmLayout(keepOriginalLayout.layoutId)" class="btn">确认布局</button>
       </div>
 
       <!-- 空状态 -->
-      <p
-          v-if="!draftLayout && designerLayouts.length === 0"
-          class="no-layout"
-      >
+      <p v-if="!draftLayout && designerLayouts.length === 0 && !keepOriginalLayout" class="no-layout">
         还没有布局信息，快去新增吧～
       </p>
     </div>
 
     <!-- 新增布局弹窗 -->
-    <div
-        v-if="showLayoutDialog"
-        class="overlay"
-        @click.self="closeLayoutDialog"
-    >
+    <div v-if="showLayoutDialog" class="overlay" @click.self="closeLayoutDialog">
       <div class="modal">
         <div class="modal-header">
           <span>布局设计</span>
           <span class="close" @click="closeLayoutDialog">×</span>
         </div>
-
         <div class="modal-body">
-          <LayoutForm
-              :houseId="currentHouseId"
-              @success="onLayoutCreated"
-              @cancel="closeLayoutDialog"
-          />
+          <LayoutForm :houseId="currentHouseId" @success="onLayoutCreated" @cancel="closeLayoutDialog" />
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- 图片预览 -->
-  <div
-      v-if="showPreview"
-      class="overlay"
-      @click.self="closePreview"
-  >
-    <div class="modal">
-      <img
-          :src="previewUrl"
-          style="max-width: 100%; max-height: 80vh;"
-      />
+    <!-- 图片预览 -->
+    <div v-if="showPreview" class="overlay" @click.self="closePreview">
+      <div class="modal">
+        <img :src="previewUrl" style="max-width: 100%; max-height: 80vh;" />
+      </div>
     </div>
   </div>
 </template>
 
 
+
+
+
 <script setup>
-import {ref, onMounted, computed} from 'vue'
+import {ref, onMounted} from 'vue'
 import { useRoute } from 'vue-router'
 import TopNav from '@/layouts/TopNav.vue'
 import LayoutForm from '@/components/layout/LayoutForm.vue'
@@ -257,6 +215,7 @@ const imageStore = useLayoutImageStore()
 /* -------------------- 页面状态 -------------------- */
 const draftLayout = ref(null)
 const designerLayouts = ref([])
+const keepOriginalLayout = ref(null)
 
 const showLayoutDialog = ref(false)
 const currentHouseId = ref(houseId)
@@ -266,7 +225,6 @@ const activeDropdownId = ref(null)
 
 import { nextTick } from 'vue'
 import {payDepositRequest, payFinalRequest} from "@/api/bill";
-
 
 
 /* -------------------- 工具函数 -------------------- */
@@ -284,74 +242,32 @@ const toggleDropdown = (layoutId) => {
 
 
 const closeAllDropdowns = () => {
-  layouts.value.forEach(l => (l.showDropdown = false))
-}
 
-// eslint-disable-next-line vue/no-export-in-script-setup
-function resolveLayoutType(layout) {
-  if (layout.version === 0 && layout.layoutIntent === 'REDESIGN') {
-    return 'USER_ORIGIN'
-  }
-
-  if (layout.version === 10 && layout.layoutIntent === 'KEEP_ORIGINAL') {
-    return 'USER_FINAL'
-  }
-
-  if (layout.layoutIntent === 'REDESIGN' && layout.version >= 1 && layout.version <= 9) {
-    return 'DESIGNER'
-  }
-
-  return 'UNKNOWN'
-}
-
-const Layout_LOCKED_STATUS = ['ARCHIVED', 'CONFIRMED']
-const Bill_LOCKED_STATUS = ['DEPOSIT_PAID', 'PAID']
-
-// eslint-disable-next-line vue/no-export-in-script-setup
-function resolveLayoutMeta(layout) {
-  const type = resolveLayoutType(layout) // USER_ORIGIN / USER_FINAL / DESIGNER
-  const locked1 = Layout_LOCKED_STATUS.includes(layout.layoutStatus)
-  const locked2 = Bill_LOCKED_STATUS.includes(layout.payStatus ?? '')
-
-  const locked = locked1 || locked2
-
-  const editable =
-      (type === 'USER_ORIGIN' && !locked) || (type === 'USER_FINAL' && !locked1)
-
-  const confirmable =
-      !locked &&
-      (type === 'USER_FINAL' || type === 'DESIGNER')
-
-  const needPay = type === 'USER_ORIGIN'
-
-  return {
-    type,
-    editable,
-    confirmable,
-    needPay
-  }
 }
 
 
 function resolveBillMeta(layout) {
   // 没有 billId → 没有任何支付相关 UI
   if (!layout.billId) {
-    return { visible: false }
+    console.error('No bill meta data available');
+    layout._billMeta = { visible: false };  // 直接给 draftLayout 添加 _billMeta
+    return;
   }
 
-  const payStatus = layout.payStatus
+  const payStatus = layout.payStatus;
+  console.log(payStatus);
 
-  return {
-    visible: true,
+  // 直接将计算的 _billMeta 添加到 layout (draftLayout) 中
+  layout._billMeta = {
     billId: layout.billId,
     payStatus,
     amount: layout.billAmount,
     depositAmount: layout.depositAmount,
-
     canPayDeposit: payStatus === 'UNPAID',
     depositPaid: payStatus === 'DEPOSIT_PAID'
-  }
+  };
 }
+
 
 
 const payDeposit = async (billId) => {
@@ -391,44 +307,30 @@ const loadLayouts = async () => {
         }
         : null
 
+    if (draftLayout.value) {
+      resolveBillMeta(draftLayout.value);  // 这里将 _billMeta 添加到 draftLayout 中
+    }
+
     designerLayouts.value = (res.designerLayouts || []).map(l => ({
       ...l,
       layoutVersion: l.version ?? 0
     }))
 
+    keepOriginalLayout.value = res.keepOriginalLayout
+        ? {
+          ...res.keepOriginalLayout,
+          layoutVersion: res.keepOriginalLayout.version ?? 0
+        }
+        : null
+
     await loadAllLayoutImages()
   } catch (err) {
-    console.error(err)
     draftLayout.value = null
     designerLayouts.value = []
     showToast.fail('加载布局失败')
   }
 }
 
-
-const layouts = computed(() => {
-  const list = []
-
-  if (draftLayout.value) {
-    list.push({
-      ...draftLayout.value,
-      isCurrent: true,
-      _meta: resolveLayoutMeta(draftLayout.value),
-      _billMeta: resolveBillMeta(draftLayout.value)
-    })
-  }
-
-  designerLayouts.value.forEach(l => {
-    list.push({
-      ...l,
-      isCurrent: false,
-      _meta: resolveLayoutMeta(l),
-      _billMeta: resolveBillMeta(l)
-    })
-  })
-
-  return list
-})
 
 
 
@@ -440,6 +342,10 @@ const loadAllLayoutImages = async () => {
     ids.push(draftLayout.value.layoutId)
   }
   designerLayouts.value.forEach(l => ids.push(l.layoutId))
+
+  if (keepOriginalLayout.value) {
+    ids.push(keepOriginalLayout.value.layoutId)
+  }
 
   await Promise.all(ids.map(loadLayoutImages))
 }
@@ -479,6 +385,10 @@ const openLayoutDialog = () => {
   showLayoutDialog.value = true
 }
 
+const closeLayoutDialog = () =>{
+  showLayoutDialog.value = false
+}
+
 const onLayoutCreated = async () => {
   showLayoutDialog.value = false
 
@@ -499,7 +409,7 @@ const confirmDelete = async (layoutId) => {
 
 /* -------------------- 上传图片 -------------------- */
 const uploadImage = async (e, layout) => {
-  if (!layout._meta?.editable) {
+  if (layout.layoutStatus === 'CONFIRMED' || layout.layoutStatus === 'ARCHIVED') {
     showToast.fail('当前布局不可编辑')
     return
   }
@@ -536,7 +446,7 @@ const uploadImage = async (e, layout) => {
 
 /* -------------------- 删除图片 -------------------- */
 const removeImage = async (layout, keyOrId) => {
-  if (!layout._meta?.editable) {
+  if (layout.layoutStatus === 'CONFIRMED' || layout.layoutStatus === 'ARCHIVED') {
     showToast.fail('当前布局不可编辑')
     return
   }
@@ -556,8 +466,12 @@ const removeImage = async (layout, keyOrId) => {
 
 
 /* -------------------- 确认布局 -------------------- */
-const confirmLayout = async (layoutId) => {
-  await confirmLayoutRequest(layoutId)
+const confirmLayout = async (layout) => {
+  if(layout.layoutStatus === 'CONFIRMED' || layout.layoutStatus === 'ARCHIVED'){
+    showToast.fail('不可再次确认')
+    return
+  }
+  await confirmLayoutRequest(layout.layoutId)
   showToast.success('布局已确认')
   await loadLayouts()
 }
@@ -571,102 +485,95 @@ onMounted(loadLayouts)
 
 <style scoped>
 .layouts-page { padding: 24px; }
+
 .header { display: flex; align-items: center; margin-bottom: 24px; }
+
 .add-btn { margin-left: auto; background: #409eff; color: #fff; padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; }
-.layout-list { display: flex; flex-wrap: wrap; gap: 16px; }
-.layout-item { width: 280px; padding: 16px; background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 8px; }
-.layout-item h3 { font-weight: bold; }
-.images { display: flex; gap: 8px; flex-wrap: wrap; }
-.image-wrapper { position: relative; width: 80px; height: 80px; }
-.image { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; cursor: pointer; }
-.delete-btn { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; border: none; background: rgba(0,0,0,0.6); color: #fff; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1; }
-.delete-btn:hover { background: rgba(255,0,0,0.8); }
-.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; justify-content: center; align-items: center; z-index: 999; }
-.modal { background: #fff; border-radius: 12px; width: 500px; max-height: 90vh; overflow-y: auto; padding: 16px; }
-.modal-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 12px; }
-.modal-header .close { cursor: pointer; font-size: 20px; }
-.actions { display: flex; gap: 8px; margin-top: 8px; }
-.actions button { padding: 4px 10px; border-radius: 6px; border: none; cursor: pointer; background: #f0f0f0; }
-.actions .danger { background: #ffeaea; color: #d93026; }
-.actions button:hover { background: #e0e0e0; }
-.no-layout { width: 100%; text-align: center; color: #888; margin-top: 40px; }
 
-.hidden-file-input {
-  display: none; /* 隐藏原始文件选择框 */
-}
-.btn {
-  margin-top: 12px;
-  padding: 8px 0;
-  border-radius: 8px;
-  border: none;
-  background: linear-gradient(135deg, #409eff, #66b1ff);
-  color: #fff;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn:hover {
-  opacity: 0.9;
-}
-
-.file-btn {
-  display: inline-block;
-  padding: 6px 12px;
-  background-color: #409eff;
-  color: #fff;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  margin-top: 8px;
-  transition: background 0.2s;
-}
-
-.file-btn:hover {
-  background-color: #66b1ff;
-}
-
-.layout-header {
+.layout-list {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  position: relative;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: flex-start;  /* 允许元素根据内容高度对齐 */
 }
 
-.actions-wrapper {
-  position: relative;
-  cursor: pointer;
-}
-
-.dot-btn {
-  font-size: 20px;
-  padding: 4px;
-  user-select: none;
-}
-
-.dropdown {
-  position: absolute;
-  top: 24px;      /* 三个点按钮下方 */
-  right: 0;
+.layout-item {
+  width: 280px;
+  padding: 16px;
   background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
   display: flex;
   flex-direction: column;
-  z-index: 10;
+  gap: 8px;
+  /* 不强制设置高度 */
+  height: auto;  /* 允许高度根据内容扩展 */
 }
 
-.dropdown button {
-  background: none;
-  border: none;
-  padding: 8px 12px;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.2s;
+.layout-item h3 { font-weight: bold; }
+
+.user-layout { border: 2px solid #409eff; background-color: #f0f9ff; }
+
+.designer-layout { border: 2px solid #66b1ff; background-color: #e6f7ff; }
+
+.designer-layouts-wrapper {
+  display: flex;
+  gap: 16px; /* 给每个设计师方案项间隔 */
+  flex-wrap: wrap;
+  padding-left: 50px;
+  padding-top: 100px;
+  justify-content: flex-start; /* 保证设计师方案的容器可以适应布局 */
 }
 
-.dropdown button:hover {
-  background: #f5f5f5;
-}
+.images { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.image-wrapper { position: relative; width: 80px; height: 80px; }
+
+.image { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; cursor: pointer; }
+
+.delete-btn { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; border: none; background: rgba(0,0,0,0.6); color: #fff; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1; }
+
+.delete-btn:hover { background: rgba(255,0,0,0.8); }
+
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; justify-content: center; align-items: center; z-index: 999; }
+
+.modal { background: #fff; border-radius: 12px; width: 500px; max-height: 90vh; overflow-y: auto; padding: 16px; }
+
+.modal-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 12px; }
+
+.modal-header .close { cursor: pointer; font-size: 20px; }
+
+.actions { display: flex; gap: 8px; margin-top: 8px; }
+
+.actions button { padding: 4px 10px; border-radius: 6px; border: none; cursor: pointer; background: #f0f0f0; }
+
+.actions .danger { background: #ffeaea; color: #d93026; }
+
+.actions button:hover { background: #e0e0e0; }
+
+.no-layout { width: 100%; text-align: center; color: #888; margin-top: 40px; }
+
+.hidden-file-input { display: none; }
+
+.btn { margin-top: 12px; padding: 8px 0; border-radius: 8px; border: none; background: linear-gradient(135deg, #409eff, #66b1ff); color: #fff; font-weight: 600; cursor: pointer; }
+
+.btn:hover { opacity: 0.9; }
+
+.file-btn { display: inline-block; padding: 6px 12px; background-color: #409eff; color: #fff; border-radius: 6px; cursor: pointer; font-size: 14px; margin-top: 8px; transition: background 0.2s; }
+
+.file-btn:hover { background-color: #66b1ff; }
+
+.layout-header { display: flex; justify-content: space-between; align-items: center; position: relative; }
+
+.actions-wrapper { position: relative; cursor: pointer; }
+
+.dot-btn { font-size: 20px; padding: 4px; user-select: none; }
+
+.dropdown { position: absolute; top: 24px; right: 0; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: flex; flex-direction: column; z-index: 10; }
+
+.dropdown button { background: none; border: none; padding: 8px 12px; text-align: left; cursor: pointer; transition: background 0.2s; }
+
+.dropdown button:hover { background: #f5f5f5; }
 
 </style>
