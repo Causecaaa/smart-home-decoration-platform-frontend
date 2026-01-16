@@ -4,10 +4,10 @@ export function getBill(billId) {
     return request.get(`/bill/${billId}/get`)
 }
 
-export function payDeposit(billId) {
+export function payDepositRequest(billId) {
     return request.post(`/bill/pay/deposit/${billId}`)
 }
 
-export function payFinal(billId) {
+export function payFinalRequest(billId) {
     return request.post(`/bill/pay/final/${billId}`)
 }

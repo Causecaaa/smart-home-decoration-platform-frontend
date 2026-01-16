@@ -25,7 +25,7 @@ export function createLayout(data) {
  */
 export function getLayoutsByHouse(houseId) {
     const token = localStorage.getItem('token')
-    return request.get(`/house-layout/${houseId}/get-all`, {
+    return request.get(`/house-layout/overview/${houseId}`, {
         headers: { Authorization: `Bearer ${token}` }
     })
 }

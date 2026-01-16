@@ -1,13 +1,14 @@
 <template>
   <TopNav class="top-nav" />
 
-  <div class="layouts-page">
+  <div class="layouts-page" @click="closeAllDropdowns">
     <div class="header">
       <h2>房屋布局</h2>
       <button class="add-btn" @click="openLayoutDialog">新增布局</button>
     </div>
 
     <div class="layout-list">
+      <!-- 布局列表 -->
       <div
           class="layout-item"
           v-for="layout in layouts"
@@ -16,30 +17,42 @@
         <div class="layout-header">
           <h3>
             布局意图：{{ LAYOUT_INTENT_MAP[layout.layoutIntent] }}
-            <span> - V{{ layout.layoutVersion }}</span>
+            <span v-if="layout.version !== undefined">
+              - V{{ layout.version }}
+            </span>
           </h3>
 
-          <!-- 三个点按钮 -->
-          <div class="actions-wrapper" @click.stop="toggleDropdown(layout.layoutId)">
+          <!-- 三个点 -->
+          <div
+              class="actions-wrapper"
+              @click.stop="toggleDropdown(layout.layoutId)"
+          >
             <span class="dot-btn">⋮</span>
-            <!-- 下拉选项 -->
-            <div v-if="layout.showDropdown" class="dropdown">
-              <button @click="confirmDelete(layout.layoutId)">删除布局</button>
+            <div v-if="activeDropdownId === layout.layoutId" class="dropdown">
+              <button @click="confirmDelete(layout.layoutId)">
+                删除布局
+              </button>
             </div>
+
           </div>
         </div>
 
-        <p v-if="!layout.layoutVersion && designer">
-          设计师：{{ designer.name }}（{{ designer.email }}）
+        <!-- ✅ 只有 draftLayout 显示设计师 -->
+        <p v-if="layout.isCurrent && draftLayout">
+          设计师：
+          {{ draftLayout.designerUsername }}
+          （{{ draftLayout.designerEmail }}）
         </p>
 
+        <p v-if="layout.redesignNotes">
+          设计需求：{{ layout.redesignNotes }}
+        </p>
 
+        <p>
+          状态：{{ LAYOUT_STATUS_MAP[layout.layoutStatus] }}
+        </p>
 
-        <p v-if="layout.redesignNotes">设计需求：{{ layout.redesignNotes }}</p>
-        <p>状态：{{ LAYOUT_STATUS_MAP[layout.layoutStatus] }}</p>
-
-
-
+        <!-- 图片列表 -->
         <div class="images">
           <div
               v-for="(img, index) in imageStore.images[layout.layoutId] || []"
@@ -48,37 +61,127 @@
           >
             <img
                 :src="img.url"
-                @click="previewImage(img.file)"
                 class="image"
+                @click="previewImage(img.file)"
             />
-            <button class="delete-btn" @click.stop="removeImage(layout.layoutId, img.id || img.key)">×</button>
+            <button
+                class="delete-btn"
+                @click.stop="removeImage(layout, img.id || img.key)"
+            >
+              ×
+            </button>
           </div>
         </div>
 
-        <!-- 上传图片按钮 -->
+        <!-- 上传 -->
         <label class="file-btn">
           新增图片
           <input
               type="file"
-              @change="uploadImage($event, layout.layoutId)"
               class="hidden-file-input"
+              @change="(e) => uploadImage(e, layout)"
           />
         </label>
-        <button
-            v-if="layout.layoutVersion !== 0"
-            class="confirm-btn"
-            @click="confirmLayout(layout.layoutId)"
+
+          <button
+              v-if="layout._meta.confirmable"
+              @click="confirmLayout(layout.layoutId)"
+              class="btn"
+          >
+            确认布局
+          </button>
+
+        <!-- 💰 订单状态区 -->
+        <div
+            v-if="layout._billMeta.visible"
+            class="bill-box"
         >
-          确认布局
-        </button>
+          <div class="bill-title">💰 设计方案费用</div>
+
+          <!-- ① 未付定金 -->
+          <div v-if="layout._billMeta.payStatus === 'UNPAID'">
+            <p>总价：¥{{ layout._billMeta.amount }}</p>
+            <p>定金：¥{{ layout._billMeta.depositAmount }}</p>
+
+            <p class="bill-hint">
+              支付定金后，设计师将开始方案设计
+            </p>
+
+            <button
+                class="btn"
+                @click="payDeposit(layout._billMeta.billId)"
+            >
+              支付定金
+            </button>
+          </div>
+
+          <!-- ② 已付定金，但还没确认方案 -->
+          <div
+              v-else-if="
+        layout._billMeta.payStatus === 'DEPOSIT_PAID' &&
+        layout.layoutStatus !== 'ARCHIVED'
+      "
+          >
+            <p>已支付定金：¥{{ layout._billMeta.depositAmount }}</p>
+            <p class="bill-hint">
+              设计师正在出方案，确认方案后需支付尾款
+            </p>
+          </div>
+
+          <!-- ③ 已确认方案，需要付尾款 -->
+          <div
+              v-else-if="
+        layout._billMeta.payStatus === 'DEPOSIT_PAID' &&
+        layout.layoutStatus === 'ARCHIVED'
+      "
+          >
+            <p>总价：¥{{ layout._billMeta.amount }}</p>
+            <p>已付定金：¥{{ layout._billMeta.depositAmount }}</p>
+            <p>
+              需支付尾款：¥{{
+                layout._billMeta.amount - layout._billMeta.depositAmount
+              }}
+            </p>
+
+            <p class="bill-hint">
+              方案已确认，请支付尾款以完成设计流程
+            </p>
+
+            <button
+                class="btn"
+                @click="payFinal(layout._billMeta.billId)"
+            >
+              支付尾款
+            </button>
+          </div>
+
+          <!-- ④ 已全部支付 -->
+          <div v-else-if="layout._billMeta.payStatus === 'PAID'">
+            <p>总价：¥{{ layout._billMeta.amount }}</p>
+            <p class="bill-hint success">
+              ✅ 费用已全部结清
+            </p>
+          </div>
+        </div>
+
+
       </div>
 
-      <p v-if="layouts.length === 0" class="no-layout">
+      <!-- 空状态 -->
+      <p
+          v-if="!draftLayout && designerLayouts.length === 0"
+          class="no-layout"
+      >
         还没有布局信息，快去新增吧～
       </p>
     </div>
 
-    <div v-if="showLayoutDialog" class="overlay" @click.self="closeLayoutDialog">
+    <!-- 新增布局弹窗 -->
+    <div
+        v-if="showLayoutDialog"
+        class="overlay"
+        @click.self="closeLayoutDialog"
+    >
       <div class="modal">
         <div class="modal-header">
           <span>布局设计</span>
@@ -97,220 +200,372 @@
   </div>
 
   <!-- 图片预览 -->
-  <div v-if="showPreview" class="overlay" @click.self="closePreview">
+  <div
+      v-if="showPreview"
+      class="overlay"
+      @click.self="closePreview"
+  >
     <div class="modal">
-      <img :src="previewUrl" style="max-width: 100%; max-height: 80vh;" />
+      <img
+          :src="previewUrl"
+          style="max-width: 100%; max-height: 80vh;"
+      />
     </div>
   </div>
 </template>
 
+
 <script setup>
-import { ref, onMounted } from 'vue'
+import {ref, onMounted, computed} from 'vue'
 import { useRoute } from 'vue-router'
 import TopNav from '@/layouts/TopNav.vue'
-import { showToast } from '@nutui/nutui'
-import {getLayoutsByHouse, deleteLayout, confirmLayoutRequest} from '@/api/layout'
 import LayoutForm from '@/components/layout/LayoutForm.vue'
-import { deleteLayoutImage, uploadLayoutImage, getLayoutImages } from "@/api/layoutImage"
-import { useLayoutImageStore } from "@/stores/layoutImageStore"
-import {getDesignerForLayout} from "@/api/designer";
+import { showToast } from '@nutui/nutui'
 
-// 常量
-const LAYOUT_INTENT_MAP = { KEEP_ORIGINAL: '保留现有户型', REDESIGN: '需要重新设计' }
-const LAYOUT_STATUS_MAP = { DRAFT: '草稿', SUBMITTED: '已提交', CONFIRMED: '已确认', ARCHIVED: '已废弃' }
+import {
+  getLayoutsByHouse,
+  deleteLayout,
+  confirmLayoutRequest
+} from '@/api/layout'
 
+import {
+  getLayoutImages,
+  uploadLayoutImage,
+  deleteLayoutImage
+} from '@/api/layoutImage'
+
+import { useLayoutImageStore } from '@/stores/layoutImageStore'
+
+/* -------------------- 常量 -------------------- */
+const LAYOUT_INTENT_MAP = {
+  KEEP_ORIGINAL: '保留现有户型',
+  REDESIGN: '需要重新设计'
+}
+const LAYOUT_STATUS_MAP = {
+  DRAFT: '草稿',
+  SUBMITTED: '已提交',
+  CONFIRMED: '已确认',
+  ARCHIVED: '历史记录'
+}
+const BASE_URL = 'http://localhost:8181'
+
+/* -------------------- 路由 & Store -------------------- */
 const route = useRoute()
 const houseId = Number(route.params.houseId)
-
 const imageStore = useLayoutImageStore()
-const layouts = ref([])
-const designer = ref(null)
 
+/* -------------------- 页面状态 -------------------- */
+const draftLayout = ref(null)
+const designerLayouts = ref([])
 
 const showLayoutDialog = ref(false)
 const currentHouseId = ref(houseId)
+const activeDropdownId = ref(null)
 
-const BASE_URL = 'http://localhost:8181'
 
-// --- 统一方法，把 url 转成 File ---
+
+import { nextTick } from 'vue'
+import {payDepositRequest, payFinalRequest} from "@/api/bill";
+
+
+
+/* -------------------- 工具函数 -------------------- */
 const urlToFile = async (url, name) => {
   const res = await fetch(url)
   const blob = await res.blob()
   return new File([blob], name, { type: blob.type })
 }
 
-// --- 加载布局和图片 ---
+const toggleDropdown = (layoutId) => {
+  activeDropdownId.value =
+      activeDropdownId.value === layoutId ? null : layoutId
+}
+
+
+
+const closeAllDropdowns = () => {
+  layouts.value.forEach(l => (l.showDropdown = false))
+}
+
+// eslint-disable-next-line vue/no-export-in-script-setup
+function resolveLayoutType(layout) {
+  if (layout.version === 0 && layout.layoutIntent === 'REDESIGN') {
+    return 'USER_ORIGIN'
+  }
+
+  if (layout.version === 10 && layout.layoutIntent === 'KEEP_ORIGINAL') {
+    return 'USER_FINAL'
+  }
+
+  if (layout.layoutIntent === 'REDESIGN' && layout.version >= 1 && layout.version <= 9) {
+    return 'DESIGNER'
+  }
+
+  return 'UNKNOWN'
+}
+
+const Layout_LOCKED_STATUS = ['ARCHIVED', 'CONFIRMED']
+const Bill_LOCKED_STATUS = ['DEPOSIT_PAID', 'PAID']
+
+// eslint-disable-next-line vue/no-export-in-script-setup
+function resolveLayoutMeta(layout) {
+  const type = resolveLayoutType(layout) // USER_ORIGIN / USER_FINAL / DESIGNER
+  const locked1 = Layout_LOCKED_STATUS.includes(layout.layoutStatus)
+  const locked2 = Bill_LOCKED_STATUS.includes(layout.payStatus ?? '')
+
+  const locked = locked1 || locked2
+
+  const editable =
+      (type === 'USER_ORIGIN' && !locked) || (type === 'USER_FINAL' && !locked1)
+
+  const confirmable =
+      !locked &&
+      (type === 'USER_FINAL' || type === 'DESIGNER')
+
+  const needPay = type === 'USER_ORIGIN'
+
+  return {
+    type,
+    editable,
+    confirmable,
+    needPay
+  }
+}
+
+
+function resolveBillMeta(layout) {
+  // 没有 billId → 没有任何支付相关 UI
+  if (!layout.billId) {
+    return { visible: false }
+  }
+
+  const payStatus = layout.payStatus
+
+  return {
+    visible: true,
+    billId: layout.billId,
+    payStatus,
+    amount: layout.billAmount,
+    depositAmount: layout.depositAmount,
+
+    canPayDeposit: payStatus === 'UNPAID',
+    depositPaid: payStatus === 'DEPOSIT_PAID'
+  }
+}
+
+
+const payDeposit = async (billId) => {
+  const ok = confirm('确认支付定金吗？支付后将进入设计阶段')
+  if (!ok) return
+
+  try {
+    await payDepositRequest(billId) // 你已有的接口
+    showToast.success('定金支付成功')
+    await loadLayouts()
+  } catch (e) {
+    showToast.fail('支付失败，请稍后重试')
+  }
+}
+
+const payFinal = async (billId) => {
+  const ok = confirm('确认支付定金吗？支付后将进入设计阶段')
+  if (!ok) return
+
+  try {
+    await payFinalRequest(billId) // 你已有的接口
+    showToast.success('定金支付成功')
+    await loadLayouts()
+  } catch (e) {
+    showToast.fail('支付失败，请稍后重试')
+  }
+}
+/* -------------------- 加载布局 -------------------- */
 const loadLayouts = async () => {
   try {
     const res = await getLayoutsByHouse(houseId)
-    layouts.value = res.map(l => ({
+
+    draftLayout.value = res.draftLayout
+        ? {
+          ...res.draftLayout,
+          layoutVersion: res.draftLayout.version ?? 0
+        }
+        : null
+
+    designerLayouts.value = (res.designerLayouts || []).map(l => ({
       ...l,
-      layoutVersion: l.layoutVersion ?? 0
+      layoutVersion: l.version ?? 0
     }))
 
-    const firstLayout = layouts.value[0]
-    if (firstLayout?.designerId) {
-      try {
-        designer.value = await getDesignerForLayout(firstLayout.designerId)
-      } catch (e) {
-        console.warn('加载设计师信息失败', e)
-        designer.value = null
-      }
-    } else {
-      designer.value = null
-    }
-
-    for (const layout of layouts.value) {
-      const imgList = await getLayoutImages(layout.layoutId)
-      const formatted = await Promise.all(
-          imgList.map(async img => {
-            const fullUrl = BASE_URL + img.imageUrl
-            const file = await urlToFile(fullUrl, `image_${img.imageId}.jpg`)
-            return { id: img.imageId, url: fullUrl, file }
-          })
-      )
-      imageStore.setImages(layout.layoutId, formatted)
-    }
+    await loadAllLayoutImages()
   } catch (err) {
     console.error(err)
-    layouts.value = []
-    showToast.fail('加载布局失败，请重试')
+    draftLayout.value = null
+    designerLayouts.value = []
+    showToast.fail('加载布局失败')
   }
 }
 
-// --- 图片预览 ---
+
+const layouts = computed(() => {
+  const list = []
+
+  if (draftLayout.value) {
+    list.push({
+      ...draftLayout.value,
+      isCurrent: true,
+      _meta: resolveLayoutMeta(draftLayout.value),
+      _billMeta: resolveBillMeta(draftLayout.value)
+    })
+  }
+
+  designerLayouts.value.forEach(l => {
+    list.push({
+      ...l,
+      isCurrent: false,
+      _meta: resolveLayoutMeta(l),
+      _billMeta: resolveBillMeta(l)
+    })
+  })
+
+  return list
+})
+
+
+
+/* -------------------- 加载图片 -------------------- */
+const loadAllLayoutImages = async () => {
+  const ids = []
+
+  if (draftLayout.value) {
+    ids.push(draftLayout.value.layoutId)
+  }
+  designerLayouts.value.forEach(l => ids.push(l.layoutId))
+
+  await Promise.all(ids.map(loadLayoutImages))
+}
+
+const loadLayoutImages = async (layoutId) => {
+  const imgList = await getLayoutImages(layoutId)
+
+  const formatted = await Promise.all(
+      imgList.map(async img => {
+        const fullUrl = BASE_URL + img.imageUrl
+        const file = await urlToFile(fullUrl, `image_${img.imageId}.jpg`)
+        return { id: img.imageId, url: fullUrl, file }
+      })
+  )
+
+  imageStore.setImages(layoutId, formatted)
+}
+
+/* -------------------- 图片预览 -------------------- */
 const previewUrl = ref(null)
 const showPreview = ref(false)
+
 const previewImage = (file) => {
-  if (!file) return
   previewUrl.value = URL.createObjectURL(file)
   showPreview.value = true
 }
-const closePreview = () => { showPreview.value = false }
+const closePreview = () => {
+  showPreview.value = false
+}
 
-// --- 新增布局 ---
+/* -------------------- 新增布局 -------------------- */
 const openLayoutDialog = () => {
-  if (layouts.value.length > 0) {
-    showToast.fail('当前房屋已存在布局，不能重复创建')
+  if (draftLayout.value) {
+    showToast.fail('当前房屋已存在布局')
     return
   }
-
-  currentHouseId.value = houseId
   showLayoutDialog.value = true
 }
 
-
-const onLayoutCreated = () => {
+const onLayoutCreated = async () => {
   showLayoutDialog.value = false
-  loadLayouts()
-}
-const closeLayoutDialog = () => { showLayoutDialog.value = false }
 
-// --- 删除布局 ---
+  // 等弹窗组件彻底卸载后再改状态
+  await nextTick()
+
+  await loadLayouts()
+}
+
+
+/* -------------------- 删除布局 -------------------- */
 const confirmDelete = async (layoutId) => {
-  if (!confirm('确定要删除该布局吗？')) return
-  try {
-    await deleteLayout(layoutId)
-    layouts.value = layouts.value.filter(l => l.layoutId !== layoutId)
-    imageStore.images[layoutId] = []
-    showToast.success('删除成功')
-  } catch (err) {
-    const msg = err.response?.data?.message || '删除失败，请重试'
-    showToast.fail(msg)
-  }
+  if (!confirm('确定删除该布局？')) return
+  await deleteLayout(layoutId)
+  await loadLayouts()
+  showToast.success('删除成功')
 }
 
-// --- 上传图片 ---
-const uploadImage = async (e, layoutId) => {
+/* -------------------- 上传图片 -------------------- */
+const uploadImage = async (e, layout) => {
+  if (!layout._meta?.editable) {
+    showToast.fail('当前布局不可编辑')
+    return
+  }
+
+  const layoutId = layout.layoutId
   const file = e.target.files[0]
   if (!file) return
 
-  // 生成唯一 key，用于前端缓存
   const key = Date.now() + '_' + file.name
-
-  // 先放入缓存显示预览
-  const fileObj = {
-    file,                      // 真正的 File 对象
-    url: URL.createObjectURL(file), // 前端预览
-    key
-  }
-  imageStore.addImage(layoutId, fileObj)
+  imageStore.addImage(layoutId, {
+    key,
+    file,
+    url: URL.createObjectURL(file)
+  })
 
   try {
-    // 上传到后端
     const res = await uploadLayoutImage(layoutId, {
-      file: fileObj.file,      // 直接传 file 对象
-      imageType: 'STRUCTURE',  // 必填，按你后端需求设置
-      imageDesc: ''            // 可选描述
+      file,
+      imageType: 'STRUCTURE',
+      imageDesc: ''
     })
 
-    // 上传成功，更新缓存里的 id
-    const imgIndex = imageStore.images[layoutId].findIndex(i => i.key === key)
-    if (imgIndex !== -1) {
-      imageStore.images[layoutId][imgIndex].id = res.imageId
-    }
+    const img = imageStore.images[layoutId].find(i => i.key === key)
+    if (img) img.id = res.imageId
 
     showToast.success('上传成功')
-  } catch (err) {
-    // 上传失败，从缓存删除
+  } catch {
     imageStore.removeImage(layoutId, key)
-    const msg = err.response?.data?.message || '上传失败'
-    showToast.fail(msg)
+    showToast.fail('上传失败')
   }
 
-  // 清空 input，防止同文件无法触发 change
   e.target.value = ''
 }
 
-const confirmLayout = async (layoutId) => {
-  try {
-    await confirmLayoutRequest(layoutId);  // 调用后端的确认布局接口
-    showToast.success('布局已确认');
-    loadLayouts();  // 重新加载布局列表以更新 UI
-  } catch (err) {
-    const msg = err.response?.data?.message || '确认布局失败';
-    showToast.fail(msg);
+/* -------------------- 删除图片 -------------------- */
+const removeImage = async (layout, keyOrId) => {
+  if (!layout._meta?.editable) {
+    showToast.fail('当前布局不可编辑')
+    return
   }
-};
 
-// --- 删除图片 ---
-const removeImage = async (layoutId, keyOrId) => {
-  const target = imageStore.images[layoutId]?.find(i => i.id === keyOrId || i.key === keyOrId)
+  const layoutId = layout.layoutId
+  const target = imageStore.images[layoutId]?.find(
+      i => i.id === keyOrId || i.key === keyOrId
+  )
   if (!target) return
 
   if (target.id) {
-    try {
-      await deleteLayoutImage(target.id)
-      showToast.success('删除成功')
-    } catch (err) {
-      const msg = err.response?.data?.message || '删除失败'
-      showToast.fail(msg)
-      return
-    }
+    await deleteLayoutImage(target.id)
   }
 
   imageStore.removeImage(layoutId, keyOrId)
 }
 
-// 控制每个 layout 的下拉显示
-const toggleDropdown = (layoutId) => {
-  layouts.value = layouts.value.map(l => ({
-    ...l,
-    showDropdown: l.layoutId === layoutId ? !l.showDropdown : false
-  }))
+
+/* -------------------- 确认布局 -------------------- */
+const confirmLayout = async (layoutId) => {
+  await confirmLayoutRequest(layoutId)
+  showToast.success('布局已确认')
+  await loadLayouts()
 }
 
-// 点击其他地方收起下拉
-document.addEventListener('click', () => {
-  layouts.value = layouts.value.map(l => ({ ...l, showDropdown: false }))
-})
-
-
-// --- 页面初始化 ---
-onMounted(() => {
-  loadLayouts()
-})
+/* -------------------- 生命周期 -------------------- */
+onMounted(loadLayouts)
 </script>
+
 
 
 
@@ -338,6 +593,20 @@ onMounted(() => {
 
 .hidden-file-input {
   display: none; /* 隐藏原始文件选择框 */
+}
+.btn {
+  margin-top: 12px;
+  padding: 8px 0;
+  border-radius: 8px;
+  border: none;
+  background: linear-gradient(135deg, #409eff, #66b1ff);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn:hover {
+  opacity: 0.9;
 }
 
 .file-btn {
