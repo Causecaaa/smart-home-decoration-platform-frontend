@@ -17,6 +17,11 @@ const routes = [
         component: () => import('@/views/layout/LayoutView.vue'),
         meta: { requiresAuth: true },
     },
+    {
+        path: '/furniture/:houseId',
+        component: () => import('@/views/furniture/FurnitureView.vue'),
+        meta: { requiresAuth: true },
+    },
 
 ]
 

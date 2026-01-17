@@ -24,6 +24,9 @@
         <button class="design-btn" @click="goLayoutPage(house.houseId)">
           布局设计
         </button>
+        <button class="design-btn" @click="goFurniturePage(house)">
+          家具设计
+        </button>
 
         <!-- 编辑/删除按钮 -->
         <div class="actions">
@@ -78,6 +81,14 @@ const currentHouse = ref(null)
 // 跳转布局页面
 const goLayoutPage = (houseId) => {
   router.push({ path: `/layout/${houseId}` })
+}
+
+const goFurniturePage = (house) => {
+  if(!house.confirmedLayoutId){
+    showToast.fail("此房屋尚不存在已完成的布局设计")
+    return
+  }
+  router.push({ path: `/furniture/${house.confirmedLayoutId}` })
 }
 
 // 加载房屋列表

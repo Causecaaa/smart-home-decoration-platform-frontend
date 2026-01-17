@@ -33,7 +33,7 @@
           设计需求：{{ draftLayout.redesignNotes }}
         </p>
 
-        <p>状态：{{ LAYOUT_STATUS_MAP[draftLayout.layoutStatus] }}</p>
+<!--        <p>状态：{{ LAYOUT_STATUS_MAP[draftLayout.layoutStatus] }}</p>-->
 
         <div class="images">
           <div v-for="(img, index) in imageStore.images[draftLayout.layoutId] || []" :key="img.id ?? img.key ?? index" class="image-wrapper">
@@ -66,14 +66,16 @@
             <p>总价：¥{{ draftLayout._billMeta?.amount }}</p>
             <p>已付定金：¥{{ draftLayout._billMeta?.depositAmount }}</p>
             <p>需支付尾款：¥{{ draftLayout._billMeta?.amount - draftLayout._billMeta?.depositAmount }}</p>
-            <p class="bill-hint">方案已确认，请支付尾款以完成设计流程</p>
+            <p class="bill-hint">方案已确认，请支付尾款</p>
             <button class="btn" @click="payFinal(draftLayout._billMeta?.billId)">支付尾款</button>
           </div>
           <div v-else-if="draftLayout._billMeta.payStatus === 'PAID'">
             <p>总价：¥{{ draftLayout._billMeta.amount }}</p>
             <p class="bill-hint success">
-              ✅ 费用已全部结清
+              ✅ 费用已全部结清<br>
+              已完成房屋结构设计
             </p>
+            <StandardButton @click="goToFurnitureDesign(draftLayout)">前往家具设计</StandardButton>
           </div>
         </div>
       </div>
@@ -138,7 +140,7 @@
           <input type="file" class="hidden-file-input" @change="(e) => uploadImage(e, keepOriginalLayout)" />
         </label>
 
-        <button @click="confirmLayout(keepOriginalLayout.layoutId)" class="btn">确认布局</button>
+        <button @click="confirmLayout(keepOriginalLayout)" class="btn">确认布局</button>
       </div>
 
       <!-- 空状态 -->
@@ -203,7 +205,7 @@ const LAYOUT_STATUS_MAP = {
   DRAFT: '草稿',
   SUBMITTED: '已提交',
   CONFIRMED: '已确认',
-  ARCHIVED: '历史记录'
+  ARCHIVED: '已封存'
 }
 const BASE_URL = 'http://localhost:8181'
 
@@ -225,6 +227,8 @@ const activeDropdownId = ref(null)
 
 import { nextTick } from 'vue'
 import {payDepositRequest, payFinalRequest} from "@/api/bill";
+import StandardButton from "@/components/button/StandardButton.vue";
+import router from "@/router";
 
 
 /* -------------------- 工具函数 -------------------- */
@@ -331,7 +335,9 @@ const loadLayouts = async () => {
   }
 }
 
-
+const goToFurnitureDesign = (layout) =>{
+  router.push({ path: `/furniture/${layout.confirmedLayoutId}` })
+}
 
 
 /* -------------------- 加载图片 -------------------- */

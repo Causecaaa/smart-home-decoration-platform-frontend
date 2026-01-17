@@ -55,7 +55,10 @@
     <!-- 底部导航 -->
     <div class="form-footer">
       <StandardButton v-if="!isLastStep" @click="nextStep">下一步</StandardButton>
-      <StandardButton v-else @click="submitForm">提交</StandardButton>
+      <StandardButton v-else :disabled="isSubmitting" @click="submitForm">
+        <span v-if="isSubmitting">提交中...</span>
+        <span v-else>提交</span>
+      </StandardButton>
     </div>
 
     <!-- 小点指示 -->
@@ -84,6 +87,8 @@ const emit = defineEmits(['success'])
 const store = useLayoutFormStore()
 const form = store.form
 const errors = store.errors
+
+const isSubmitting = ref(false)
 
 // 直接初始化
 form.houseId = houseId
@@ -142,9 +147,11 @@ const onDesignerSelected = (designer) => {
 const submitForm = async () => {
   if (!validateStep()) return
 
-  if (store.form.layoutIntent === 'KEEP_ORIGINAL') {
-    try {
-      // 1️⃣ 创建 layout
+  isSubmitting.value = true // 开始提交，禁用按钮
+
+  try {
+    if (store.form.layoutIntent === 'KEEP_ORIGINAL') {
+      // 提交 KEEP_ORIGINAL layout
       const layoutData = {
         houseId: store.form.houseId,
         layoutIntent: store.form.layoutIntent,
@@ -154,27 +161,21 @@ const submitForm = async () => {
       const res = await createLayout(layoutData)
       const layoutId = res.layoutId
 
-      // 2️⃣ 循环上传图片
       for (const img of store.form.images) {
         await uploadLayoutImage(layoutId, {
           file: img.file,
-          imageDesc: '', // 如果有描述可以用 img.desc
-          imageType: 'STRUCTURE' // 后端需要的类型
+          imageDesc: '',
+          imageType: 'STRUCTURE'
         })
       }
-      // emit 给父组件
       emit('success', { layoutId })
-    } catch (err) {
-      showToast.fail('提交 KEEP_ORIGINAL layout 出错', err)
-    }
-  }
-  if(store.form.layoutIntent === 'REDESIGN'){
-    try{
+    } else if (store.form.layoutIntent === 'REDESIGN') {
+      // 提交 REDESIGN layout
       const layoutData = {
         houseId: store.form.houseId,
         layoutIntent: store.form.layoutIntent,
         redesignNotes: store.form.redesignNotes || null,
-        designerId : store.form.designerId,
+        designerId: store.form.designerId
       }
 
       const res = await createLayoutDraft(layoutData)
@@ -183,14 +184,16 @@ const submitForm = async () => {
       for (const img of store.form.images) {
         await uploadLayoutImage(layoutId, {
           file: img.file,
-          imageDesc: '', // 如果有描述可以用 img.desc
-          imageType: 'STRUCTURE' // 后端需要的类型
+          imageDesc: '',
+          imageType: 'STRUCTURE'
         })
       }
       emit('success', { layoutId })
-    }catch (err){
-      showToast.fail('提交 REDESIGN layout 出错', err)
     }
+  } catch (err) {
+    showToast.fail('提交出错', err)
+  } finally {
+    isSubmitting.value = false // 完成后恢复按钮状态
   }
 }
 
