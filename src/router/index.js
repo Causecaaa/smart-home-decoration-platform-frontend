@@ -8,18 +8,23 @@ const routes = [
     { path: '/main', component: () => import('@/views/main/mainView.vue') },
     {
         path: '/houses',
-        component: () => import('@/views/house/HouseView.vue'),
+        component: () => import('@/views/step1/house/HouseView.vue'),
         meta: { requiresAuth: true },
     },
     { path: '/test', component: () => import('@/views/testView.vue') },
     {
         path: '/layout/:houseId',
-        component: () => import('@/views/layout/LayoutView.vue'),
+        component: () => import('@/views/step1/layout/LayoutView.vue'),
         meta: { requiresAuth: true },
     },
     {
         path: '/furniture/:layoutId',
-        component: () => import('@/views/furniture/FurnitureView.vue'),
+        component: () => import('@/views/step1/furniture/FurnitureView.vue'),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: '/profile',
+        component: () => import('@/views/profile/ProfileView.vue'),
         meta: { requiresAuth: true },
     },
 
