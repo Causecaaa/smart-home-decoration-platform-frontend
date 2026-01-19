@@ -30,15 +30,7 @@ export function getLayoutsByHouse(houseId) {
     })
 }
 
-/**
- * 获取布局详情
- */
-export function getLayoutDetail(layoutId) {
-    const token = localStorage.getItem('token')
-    return request.get(`/house-layout/get/${layoutId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-    })
-}
+
 
 /**
  * 更新布局信息（说明 / 需求等）

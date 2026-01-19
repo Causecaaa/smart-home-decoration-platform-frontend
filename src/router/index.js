@@ -18,7 +18,7 @@ const routes = [
         meta: { requiresAuth: true },
     },
     {
-        path: '/furniture/:houseId',
+        path: '/furniture/:layoutId',
         component: () => import('@/views/furniture/FurnitureView.vue'),
         meta: { requiresAuth: true },
     },

@@ -6,9 +6,12 @@
       <button class="add-btn" @click="openLayoutDialog">新增布局</button>
     </div>
 
-    <div class="layout-list">
+    <div class="layout-and-rooms-container">
       <!-- 用户布局 -->
-      <div v-if="draftLayout" :class="['layout-item', { 'user-layout': true }]">
+      <div
+        v-if="draftLayout"
+        :class="['layout-item', { 'user-layout': true }]"
+      >
         <div class="layout-header">
           <h3>
             布局意图：{{ LAYOUT_INTENT_MAP[draftLayout.layoutIntent] }}
@@ -33,8 +36,6 @@
           设计需求：{{ draftLayout.redesignNotes }}
         </p>
 
-<!--        <p>状态：{{ LAYOUT_STATUS_MAP[draftLayout.layoutStatus] }}</p>-->
-
         <div class="images">
           <div v-for="(img, index) in imageStore.images[draftLayout.layoutId] || []" :key="img.id ?? img.key ?? index" class="image-wrapper">
             <img :src="img.url" class="image" @click="previewImage(img.file)" />
@@ -51,7 +52,6 @@
         <!-- 💰 订单状态区 -->
         <div class="bill-box">
           <div class="bill-title">💰 设计方案费用</div>
-          <!-- 防止 _billMeta 为空 -->
           <div v-if="draftLayout._billMeta?.payStatus === 'UNPAID'">
             <p>总价：¥{{ draftLayout._billMeta?.amount }}</p>
             <p>定金：¥{{ draftLayout._billMeta?.depositAmount }}</p>
@@ -81,40 +81,44 @@
       </div>
 
       <!-- 设计师方案布局 -->
-      <div class="designer-layouts-wrapper">
-        <div v-for="layout in designerLayouts" :key="layout.layoutId" :class="['layout-item', { 'designer-layout': true }]">
-          <div class="layout-header">
-            <h3>
-              布局意图：{{ LAYOUT_INTENT_MAP[layout.layoutIntent] }}
-              <span v-if="layout.version !== undefined">
-                - V{{ layout.version }}
-              </span>
-            </h3>
-          </div>
-
-          <p v-if="layout.redesignNotes">设计需求：{{ layout.redesignNotes }}</p>
-          <p>状态：{{ LAYOUT_STATUS_MAP[layout.layoutStatus] }}</p>
-
-          <div class="images">
-            <div v-for="(img, index) in imageStore.images[layout.layoutId] || []" :key="img.id ?? img.key ?? index" class="image-wrapper">
-              <img :src="img.url" class="image" @click="previewImage(img.file)" />
+      <div class="designer-layouts-wrapper" v-if="designerLayouts.length > 0">
+        <h3>设计师方案</h3>
+        <div class="designer-layouts-grid">
+          <div v-for="layout in designerLayouts" :key="layout.layoutId" :class="['layout-item', { 'designer-layout': true }]">
+            <div class="layout-header">
+              <h3>
+                布局意图：{{ LAYOUT_INTENT_MAP[layout.layoutIntent] }}
+                <span v-if="layout.version !== undefined">
+            - V{{ layout.version }}
+          </span>
+              </h3>
             </div>
-          </div>
 
-          <button @click="confirmLayout(layout)" class="btn">
-            确认布局
-          </button>
+            <p v-if="layout.redesignNotes">设计需求：{{ layout.redesignNotes }}</p>
+            <p>状态：{{ LAYOUT_STATUS_MAP[layout.layoutStatus] }}</p>
+
+            <div class="images">
+              <div v-for="(img, index) in imageStore.images[layout.layoutId] || []" :key="img.id ?? img.key ?? index" class="image-wrapper">
+                <img :src="img.url" class="image" @click="previewImage(img.file)" />
+              </div>
+            </div>
+
+            <button @click="confirmLayout(layout)" class="btn">
+              确认布局
+            </button>
+          </div>
         </div>
       </div>
 
+
       <!-- 保留原布局 -->
-      <div v-if="keepOriginalLayout" :class="['layout-item', { 'designer-layout': true }]">
+      <div v-if="keepOriginalLayout" :class="['layout-item', { 'user-layout': true }]">
         <div class="layout-header">
           <h3>
             布局意图：{{ LAYOUT_INTENT_MAP[keepOriginalLayout.layoutIntent] }}
             <span v-if="keepOriginalLayout.version !== undefined">
-              - V{{ keepOriginalLayout.version }}
-            </span>
+        - V{{ keepOriginalLayout.version }}
+      </span>
           </h3>
 
           <div class="actions-wrapper" @click.stop="toggleDropdown(keepOriginalLayout.layoutId)">
@@ -143,6 +147,7 @@
         <button @click="confirmLayout(keepOriginalLayout)" class="btn">确认布局</button>
       </div>
 
+
       <!-- 空状态 -->
       <p v-if="!draftLayout && designerLayouts.length === 0 && !keepOriginalLayout" class="no-layout">
         还没有布局信息，快去新增吧～
@@ -170,6 +175,7 @@
     </div>
   </div>
 </template>
+
 
 
 
@@ -487,21 +493,32 @@ onMounted(loadLayouts)
 </script>
 
 
-
-
 <style scoped>
-.layouts-page { padding: 24px; }
+.layouts-page {
+  padding: 24px;
+}
 
-.header { display: flex; align-items: center; margin-bottom: 24px; }
+.header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+}
 
-.add-btn { margin-left: auto; background: #409eff; color: #fff; padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; }
+.add-btn {
+  margin-left: auto;
+  background: #409eff;
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
 
-.layout-list {
+.layout-and-rooms-container {
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
-  justify-content: flex-start;
-  align-items: flex-start;  /* 允许元素根据内容高度对齐 */
+  align-items: flex-start;
 }
 
 .layout-item {
@@ -513,73 +530,279 @@ onMounted(loadLayouts)
   display: flex;
   flex-direction: column;
   gap: 8px;
-  /* 不强制设置高度 */
-  height: auto;  /* 允许高度根据内容扩展 */
+  min-height: auto;  /* 确保最小高度自适应 */
+  height: auto;     /* 确保高度自适应 */
 }
 
-.layout-item h3 { font-weight: bold; }
 
-.user-layout { border: 2px solid #409eff; background-color: #f0f9ff; }
+.layout-item h3 {
+  font-weight: bold;
+}
 
-.designer-layout { border: 2px solid #66b1ff; background-color: #e6f7ff; }
+.user-layout {
+  border: 2px solid #409eff;
+  background-color: #f0f9ff;
+}
 
+
+/* 设计师布局容器 */
 .designer-layouts-wrapper {
-  display: flex;
-  gap: 16px; /* 给每个设计师方案项间隔 */
-  flex-wrap: wrap;
-  padding-left: 50px;
-  padding-top: 100px;
-  justify-content: flex-start; /* 保证设计师方案的容器可以适应布局 */
+  flex: 1;
+  min-width: 600px;
+  padding: 16px;
+  background: linear-gradient(100deg, #e6f7ff, #fff0fd);
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  min-height: auto;
 }
 
-.images { display: flex; gap: 8px; flex-wrap: wrap; }
+.designer-layouts-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;  /* 添加这行，确保设计师布局项也自适应高度 */
+}
 
-.image-wrapper { position: relative; width: 80px; height: 80px; }
 
-.image { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; cursor: pointer; }
+/* 设计师布局差异化样式 */
+.designer-layout {
+  border: 2px solid #ccf0fd;
+  background-color: #e6f7ff;
+}
+.designer-layouts-wrapper h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+  text-align: center;
+}
 
-.delete-btn { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; border: none; background: rgba(0,0,0,0.6); color: #fff; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1; }
 
-.delete-btn:hover { background: rgba(255,0,0,0.8); }
+/* 保留原布局样式与用户布局一致 */
+.keep-original-layout {
+  width: 280px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: auto;
+}
 
-.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; justify-content: center; align-items: center; z-index: 999; }
+.keep-original-layout h3 {
+  font-weight: bold;
+}
 
-.modal { background: #fff; border-radius: 12px; width: 500px; max-height: 90vh; overflow-y: auto; padding: 16px; }
+.keep-original-layout {
+  border: 2px solid #409eff;
+  background-color: #f0f9ff;
+}
 
-.modal-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 12px; }
+.images {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 
-.modal-header .close { cursor: pointer; font-size: 20px; }
+.image-wrapper {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
 
-.actions { display: flex; gap: 8px; margin-top: 8px; }
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+  cursor: pointer;
+}
 
-.actions button { padding: 4px 10px; border-radius: 6px; border: none; cursor: pointer; background: #f0f0f0; }
+.delete-btn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+}
 
-.actions .danger { background: #ffeaea; color: #d93026; }
+.delete-btn:hover {
+  background: rgba(255,0,0,0.8);
+}
 
-.actions button:hover { background: #e0e0e0; }
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
 
-.no-layout { width: 100%; text-align: center; color: #888; margin-top: 40px; }
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 16px;
+}
 
-.hidden-file-input { display: none; }
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  font-weight: bold;
+  margin-bottom: 12px;
+}
 
-.btn { margin-top: 12px; padding: 8px 0; border-radius: 8px; border: none; background: linear-gradient(135deg, #409eff, #66b1ff); color: #fff; font-weight: 600; cursor: pointer; }
+.modal-header .close {
+  cursor: pointer;
+  font-size: 20px;
+}
 
-.btn:hover { opacity: 0.9; }
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
 
-.file-btn { display: inline-block; padding: 6px 12px; background-color: #409eff; color: #fff; border-radius: 6px; cursor: pointer; font-size: 14px; margin-top: 8px; transition: background 0.2s; }
+.actions button {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  background: #f0f0f0;
+}
 
-.file-btn:hover { background-color: #66b1ff; }
+.actions .danger {
+  background: #ffeaea;
+  color: #d93026;
+}
 
-.layout-header { display: flex; justify-content: space-between; align-items: center; position: relative; }
+.actions button:hover {
+  background: #e0e0e0;
+}
 
-.actions-wrapper { position: relative; cursor: pointer; }
+.no-layout {
+  width: 100%;
+  text-align: center;
+  color: #888;
+  margin-top: 40px;
+}
 
-.dot-btn { font-size: 20px; padding: 4px; user-select: none; }
+.hidden-file-input {
+  display: none;
+}
 
-.dropdown { position: absolute; top: 24px; right: 0; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: flex; flex-direction: column; z-index: 10; }
+.btn {
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: #409eff;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
 
-.dropdown button { background: none; border: none; padding: 8px 12px; text-align: left; cursor: pointer; transition: background 0.2s; }
+.btn:hover {
+  background: #66b1ff;
+}
 
-.dropdown button:hover { background: #f5f5f5; }
+.file-btn {
+  display: inline-block;
+  padding: 6px 12px;
+  background-color: #409eff;
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-top: 8px;
+  transition: background 0.2s;
+}
 
+.file-btn:hover {
+  background-color: #66b1ff;
+}
+
+.layout-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+}
+
+.actions-wrapper {
+  position: relative;
+  cursor: pointer;
+}
+
+.dot-btn {
+  font-size: 20px;
+  padding: 4px;
+  user-select: none;
+}
+
+.dropdown {
+  position: absolute;
+  top: 24px;
+  right: 0;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+}
+
+.dropdown button {
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.dropdown button:hover {
+  background: #f5f5f5;
+}
+
+.bill-box {
+  margin-top: 12px;
+  padding: 12px;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  border-left: 4px solid #66ccff;
+}
+
+.bill-title {
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.bill-hint {
+  font-size: 12px;
+  color: #666;
+  margin: 8px 0;
+}
+
+.bill-hint.success {
+  color: #67c23a;
+}
 </style>
