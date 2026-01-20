@@ -39,7 +39,7 @@ import { reactive } from 'vue'
 import { showToast } from '@nutui/nutui'
 import StandardButton from '@/components/button/StandardButton.vue'
 import { loginUser } from '@/api/user'
-import { useUserStore } from '@/stores/user'
+import { useUserStore } from '@/stores/userStore'
 
 const emit = defineEmits(['success'])
 const userStore = useUserStore()

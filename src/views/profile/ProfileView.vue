@@ -1,7 +1,7 @@
 <script setup>
 import {ref, onMounted, computed} from 'vue';
 import TopNav from "@/layouts/TopNav.vue";
-import { useUserStore } from '@/stores/user';
+import { useUserStore } from '@/stores/userStore';
 import { getCurrentUserInfo, uploadUserAvatar, updateUserProfile, changeUserPassword } from '@/api/user';
 
 const userStore = useUserStore();

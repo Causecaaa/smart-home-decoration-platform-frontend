@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { useUserStore } from '@/stores/user'
+import { useUserStore } from '@/stores/userStore'
 
 const request = axios.create({
     baseURL: 'http://localhost:8181', // 改成你的后端地址

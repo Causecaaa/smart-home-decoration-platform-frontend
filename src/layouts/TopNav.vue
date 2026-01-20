@@ -8,7 +8,7 @@
       <div class="menu-item" @click="goPage('/')">首页</div>
       <div class="menu-item" @click="goPage('/houses')">我的房屋</div>
       <div class="menu-item" @click="goPage('/profile')">个人信息</div>
-      <div class="menu-item" @click="goPage('/contact')">联系客服</div>
+      <div class="menu-item" @click="goPage('/contact')">联系</div>
     </nav>
 
     <div class="nav-right">
@@ -63,7 +63,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { useUserStore } from '@/stores/user';
+import { useUserStore } from '@/stores/userStore';
 import LoginForm from '@/components/login/LoginForm.vue';
 import RegisterForm from '@/components/register/RegisterForm.vue';
 import { showToast } from '@nutui/nutui';

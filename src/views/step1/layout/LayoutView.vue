@@ -30,11 +30,16 @@
 
         <p v-if="draftLayout.designerUsername">
           设计师：{{ draftLayout.designerUsername }}（{{ draftLayout.designerEmail }}）
+          设计需求：{{ draftLayout.redesignNotes }}
+          <button
+              class="chat-btn"
+              @click="openChatWithDesigner"
+              v-if="draftLayout.designerId"
+          >
+            💬 联系设计师
+          </button>
         </p>
 
-        <p v-if="draftLayout.redesignNotes">
-          设计需求：{{ draftLayout.redesignNotes }}
-        </p>
 
         <div class="images">
           <div v-for="(img, index) in imageStore.images[draftLayout.layoutId] || []" :key="img.id ?? img.key ?? index" class="image-wrapper">
@@ -173,6 +178,29 @@
         <img :src="previewUrl" style="max-width: 100%; max-height: 80vh;" />
       </div>
     </div>
+
+    <!-- 聊天悬浮窗 -->
+    <div v-if="showChatModal" class="chat-overlay" @click.self="closeChatModal">
+      <div class="chat-modal">
+        <div class="chat-header">
+          <div class="chat-header-info">
+            <img
+                :src="`${BASE_URL}${draftLayout.avatarUrl || '/uploads/avatar/default.png'}`"
+                alt="设计师头像"
+                class="designer-avatar"
+                @error="onAvatarError"
+            />
+            <span>与设计师 {{ draftLayout.designerUsername }} 聊天</span>
+          </div>
+          <span class="close-chat" @click="closeChatModal">×</span>
+        </div>
+
+        <div class="chat-body">
+          <ChatView :target-user-id="chatTargetUserId" />
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -187,6 +215,8 @@ import { useRoute } from 'vue-router'
 import TopNav from '@/layouts/TopNav.vue'
 import LayoutForm from '@/components/layout/LayoutForm.vue'
 import { showToast } from '@nutui/nutui'
+import ChatView from '@/components/ChatView.vue'
+
 
 import {
   getLayoutsByHouse,
@@ -228,6 +258,7 @@ const keepOriginalLayout = ref(null)
 const showLayoutDialog = ref(false)
 const currentHouseId = ref(houseId)
 const activeDropdownId = ref(null)
+
 
 
 
@@ -305,6 +336,24 @@ const payFinal = async (billId) => {
     showToast.fail('支付失败，请稍后重试')
   }
 }
+
+// 添加响应式数据
+const showChatModal = ref(false)
+const chatTargetUserId = ref(null)
+
+// 打开与设计师的聊天窗口
+const openChatWithDesigner = () => {
+  if (draftLayout.value && draftLayout.value.designerId) {
+    chatTargetUserId.value = draftLayout.value.designerId
+    showChatModal.value = true
+  }
+}
+
+// 关闭聊天窗口
+const closeChatModal = () => {
+  showChatModal.value = false
+}
+
 /* -------------------- 加载布局 -------------------- */
 const loadLayouts = async () => {
   try {
@@ -805,4 +854,80 @@ onMounted(loadLayouts)
 .bill-hint.success {
   color: #67c23a;
 }
+
+.chat-btn {
+  margin-left: 10px;
+  padding: 4px 8px;
+  background: #409eff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.chat-btn:hover {
+  background: #66b1ff;
+}
+
+.chat-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.chat-modal {
+  background: #fff;
+  border-radius: 12px;
+  width: 500px;
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #eee;
+  font-weight: bold;
+}
+
+.close-chat {
+  cursor: pointer;
+  font-size: 24px;
+  color: #999;
+}
+
+.close-chat:hover {
+  color: #333;
+}
+
+.chat-body {
+  flex: 1;
+  overflow: hidden;
+  padding: 16px;
+}
+
+.chat-header-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.designer-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #409eff;
+}
+
+
 </style>

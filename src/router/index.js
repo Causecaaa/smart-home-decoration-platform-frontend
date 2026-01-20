@@ -1,6 +1,6 @@
 // router/index.js
 import { createRouter, createWebHistory } from 'vue-router'
-import { useUserStore } from '@/stores/user'
+import { useUserStore } from '@/stores/userStore'
 import { showToast } from '@nutui/nutui'
 
 const routes = [
@@ -25,6 +25,11 @@ const routes = [
     {
         path: '/profile',
         component: () => import('@/views/profile/ProfileView.vue'),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: '/contact',
+        component: () => import('@/views/contact/ContactView.vue'),
         meta: { requiresAuth: true },
     },
 
