@@ -18,6 +18,18 @@ const routes = [
         meta: { requiresAuth: true },
     },
     {
+        path: '/designer/layout/:houseId',
+        name: 'DesignerLayout',
+        component: () => import('@/views/designer/DesignerLayoutView.vue'),
+        meta: { requiresAuth: true, role: 'DESIGNER' }
+    },
+    {
+        path: '/designer/furniture/:layoutId',
+        name: 'DesignerFurniture',
+        component: () => import('@/views/designer/DesignerFurnitureView.vue'),
+        meta: { requiresAuth: true, role: 'DESIGNER' }
+    },
+    {
         path: '/furniture/:layoutId',
         component: () => import('@/views/step1/furniture/FurnitureView.vue'),
         meta: { requiresAuth: true },
@@ -32,6 +44,14 @@ const routes = [
         component: () => import('@/views/contact/ContactView.vue'),
         meta: { requiresAuth: true },
     },
+    {
+        path: '/design',
+        component: () => import('@/views/designer/DesignerView.vue'),
+        meta: { requiresAuth: true },
+    },
+
+
+
 
 ]
 

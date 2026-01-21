@@ -11,7 +11,7 @@ export function createLayoutDraft(data) {
 }
 
 /**
- * KEEP_ORIGINAL：创建布局（直接确认）
+ * KEEP_ORIGINAL：创建布局（直接确认）、设计师创建方案
  */
 export function createLayout(data) {
     const token = localStorage.getItem('token')

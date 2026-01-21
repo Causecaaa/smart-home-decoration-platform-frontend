@@ -1,89 +1,49 @@
 <template>
   <TopNav class="top-nav" />
-  <div class="layouts-container">
-    <div class="layouts-content">
+  <div class="designer-layouts-container">
+    <div class="designer-layouts-content">
       <div class="header">
-        <h2>房屋布局</h2>
-        <button class="add-btn" @click="openLayoutDialog">新增布局</button>
+        <h2>设计师布局管理</h2>
+        <button class="add-btn" @click="openLayoutDialog">创建新方案</button>
       </div>
 
       <div class="layout-and-rooms-container">
-        <!-- 用户布局 -->
+        <!-- 原始布局 -->
         <div
           v-if="draftLayout"
-          :class="['layout-item', { 'user-layout': true }]"
+          :class="['layout-item', { 'original-layout': true }]"
         >
           <div class="layout-header">
             <h3>
-              布局意图：{{ LAYOUT_INTENT_MAP[draftLayout.layoutIntent] }}
+              原始布局：{{ LAYOUT_INTENT_MAP[draftLayout.layoutIntent] }}
               <span v-if="draftLayout.version !== undefined">
                 - V{{ draftLayout.version }}
               </span>
             </h3>
-
-            <div class="actions-wrapper" @click.stop="toggleDropdown(draftLayout.layoutId)">
-              <span class="dot-btn">⋮</span>
-              <div v-if="activeDropdownId === draftLayout.layoutId" class="dropdown">
-                <button @click="confirmDelete(draftLayout.layoutId)">删除布局</button>
-              </div>
-            </div>
           </div>
 
-          <p v-if="draftLayout.designerUsername">
-            设计师：{{ draftLayout.designerUsername }}（{{ draftLayout.designerEmail }}）
-            设计需求：{{ draftLayout.redesignNotes }}
+          <p>状态：{{ LAYOUT_STATUS_MAP[draftLayout.layoutStatus] }}</p>
+
+          <!-- 显示用户信息 -->
+          <div class="user-info">
+            <p><strong>客户：</strong>{{ draftLayout.userName }}</p>
+            <p><strong>联系方式：</strong>{{ draftLayout.userPhone }} | {{ draftLayout.userEmail }}</p>
             <button
                 class="chat-btn"
-                @click="openChatWithDesigner"
-                v-if="draftLayout.designerId"
+                @click="openChatWithUser"
+                v-if="draftLayout.userId"
             >
-              💬 联系设计师
+              💬 联系客户
             </button>
-          </p>
-
+          </div>
 
           <div class="images">
             <div v-for="(img, index) in imageStore.images[draftLayout.layoutId] || []" :key="img.id ?? img.key ?? index" class="image-wrapper">
               <img :src="img.url" class="image" @click="previewImage(img.file)" />
-              <button class="delete-btn" @click.stop="removeImage(draftLayout, img.id || img.key)">×</button>
             </div>
           </div>
 
-          <!-- 上传图片 -->
-          <label class="file-btn">
-            新增图片
-            <input type="file" class="hidden-file-input" @change="(e) => uploadImage(e, draftLayout)" />
-          </label>
-
-          <!-- 💰 订单状态区 -->
-          <div class="bill-box">
-            <div class="bill-title">💰 设计方案费用</div>
-            <div v-if="draftLayout._billMeta?.payStatus === 'UNPAID'">
-              <p>总价：¥{{ draftLayout._billMeta?.amount }}</p>
-              <p>定金：¥{{ draftLayout._billMeta?.depositAmount }}</p>
-              <p class="bill-hint">支付定金后，设计师将开始方案设计</p>
-              <button class="btn" @click="payDeposit(draftLayout._billMeta?.billId)">支付定金</button>
-            </div>
-            <div v-else-if="draftLayout._billMeta?.payStatus === 'DEPOSIT_PAID' && draftLayout.layoutStatus !== 'ARCHIVED'">
-              <p>已支付定金：¥{{ draftLayout._billMeta?.depositAmount }}</p>
-              <p class="bill-hint">设计师正在出方案，确认方案后需支付尾款</p>
-            </div>
-            <div v-else-if="draftLayout._billMeta?.payStatus === 'DEPOSIT_PAID' && draftLayout.layoutStatus === 'ARCHIVED'">
-              <p>总价：¥{{ draftLayout._billMeta?.amount }}</p>
-              <p>已付定金：¥{{ draftLayout._billMeta?.depositAmount }}</p>
-              <p>需支付尾款：¥{{ draftLayout._billMeta?.amount - draftLayout._billMeta?.depositAmount }}</p>
-              <p class="bill-hint">方案已确认，请支付尾款</p>
-              <button class="btn" @click="payFinal(draftLayout._billMeta?.billId)">支付尾款</button>
-            </div>
-            <div v-else-if="draftLayout._billMeta.payStatus === 'PAID'">
-              <p>总价：¥{{ draftLayout._billMeta.amount }}</p>
-              <p class="bill-hint success">
-                ✅ 费用已全部结清<br>
-                已完成房屋结构设计
-              </p>
-              <StandardButton @click="goToFurnitureDesign(draftLayout)">前往家具设计</StandardButton>
-            </div>
-          </div>
+          <p class="readonly-note">原始布局为只读状态，不可编辑</p>
         </div>
 
         <!-- 设计师方案布局 -->
@@ -93,10 +53,10 @@
             <div v-for="layout in designerLayouts" :key="layout.layoutId" :class="['layout-item', { 'designer-layout': true }]">
               <div class="layout-header">
                 <h3>
-                  布局意图：{{ LAYOUT_INTENT_MAP[layout.layoutIntent] }}
+                  设计师方案：{{ LAYOUT_INTENT_MAP[layout.layoutIntent] }}
                   <span v-if="layout.version !== undefined">
-              - V{{ layout.version }}
-            </span>
+                    - V{{ layout.version }}
+                  </span>
                 </h3>
               </div>
 
@@ -106,70 +66,40 @@
               <div class="images">
                 <div v-for="(img, index) in imageStore.images[layout.layoutId] || []" :key="img.id ?? img.key ?? index" class="image-wrapper">
                   <img :src="img.url" class="image" @click="previewImage(img.file)" />
+                  <button class="delete-btn" @click.stop="removeImage(layout, img.id || img.key)" v-if="canEditLayout(layout)">×</button>
                 </div>
               </div>
 
-              <button @click="confirmLayout(layout)" class="btn">
-                确认布局
-              </button>
+              <!-- 设计师可编辑的图片上传 -->
+              <label class="file-btn" v-if="canEditLayout(layout)">
+                新增图片
+                <input type="file" class="hidden-file-input" @change="(e) => uploadImage(e, layout)" multiple />
+              </label>
+
             </div>
           </div>
         </div>
-
-
-        <!-- 保留原布局 -->
-        <div v-if="keepOriginalLayout" :class="['layout-item', { 'user-layout': true }]">
-          <div class="layout-header">
-            <h3>
-              布局意图：{{ LAYOUT_INTENT_MAP[keepOriginalLayout.layoutIntent] }}
-              <span v-if="keepOriginalLayout.version !== undefined">
-          - V{{ keepOriginalLayout.version }}
-        </span>
-            </h3>
-
-            <div class="actions-wrapper" @click.stop="toggleDropdown(keepOriginalLayout.layoutId)">
-              <span class="dot-btn">⋮</span>
-              <div v-if="activeDropdownId === keepOriginalLayout.layoutId" class="dropdown">
-                <button @click="confirmDelete(keepOriginalLayout.layoutId)">删除布局</button>
-              </div>
-            </div>
-          </div>
-
-          <p>状态：{{ LAYOUT_STATUS_MAP[keepOriginalLayout.layoutStatus] }}</p>
-
-          <div class="images">
-            <div v-for="(img, index) in imageStore.images[keepOriginalLayout.layoutId] || []" :key="img.id ?? img.key ?? index" class="image-wrapper">
-              <img :src="img.url" class="image" @click="previewImage(img.file)" />
-              <button class="delete-btn" @click.stop="removeImage(keepOriginalLayout, img.id || img.key)">×</button>
-            </div>
-          </div>
-
-          <!-- 上传图片 -->
-          <label class="file-btn">
-            新增图片
-            <input type="file" class="hidden-file-input" @change="(e) => uploadImage(e, keepOriginalLayout)" />
-          </label>
-
-          <button @click="confirmLayout(keepOriginalLayout)" class="btn">确认布局</button>
-        </div>
-
 
         <!-- 空状态 -->
-        <p v-if="!draftLayout && designerLayouts.length === 0 && !keepOriginalLayout" class="no-layout">
-          还没有布局信息，快去新增吧～
+        <p v-if="!draftLayout && designerLayouts.length === 0" class="no-layout">
+          还没有布局信息
         </p>
       </div>
     </div>
 
-    <!-- 新增布局弹窗 -->
+    <!-- 创建新方案弹窗 -->
     <div v-if="showLayoutDialog" class="overlay" @click.self="closeLayoutDialog">
       <div class="modal">
         <div class="modal-header">
-          <span>布局设计</span>
+          <span>创建新方案</span>
           <span class="close" @click="closeLayoutDialog">×</span>
         </div>
         <div class="modal-body">
-          <LayoutForm :houseId="currentHouseId" @success="onLayoutCreated" @cancel="closeLayoutDialog" />
+          <DesignerLayoutForm
+              :houseId="currentHouseId"
+              @success="onLayoutCreated"
+              @cancel="closeLayoutDialog"
+          />
         </div>
       </div>
     </div>
@@ -188,11 +118,11 @@
           <div class="chat-header-info">
             <img
                 :src="`${BASE_URL}${draftLayout.avatarUrl || '/uploads/avatar/default.png'}`"
-                alt="设计师头像"
-                class="designer-avatar"
+                alt="客户头像"
+                class="user-avatar"
                 @error="onAvatarError"
             />
-            <span>与设计师 {{ draftLayout.designerUsername }} 聊天</span>
+            <span>与客户 {{ draftLayout.userName }} 聊天</span>
           </div>
           <span class="close-chat" @click="closeChatModal">×</span>
         </div>
@@ -202,7 +132,6 @@
         </div>
       </div>
     </div>
-
   </div>
 </template>
 
@@ -210,15 +139,11 @@
 import {ref, onMounted} from 'vue'
 import { useRoute } from 'vue-router'
 import TopNav from '@/layouts/TopNav.vue'
-import LayoutForm from '@/components/layout/LayoutForm.vue'
 import { showToast } from '@nutui/nutui'
 import ChatView from '@/components/ChatView.vue'
 
-
 import {
   getLayoutsByHouse,
-  deleteLayout,
-  confirmLayoutRequest
 } from '@/api/layout'
 
 import {
@@ -228,6 +153,7 @@ import {
 } from '@/api/layoutImage'
 
 import { useLayoutImageStore } from '@/stores/layoutImageStore'
+import DesignerLayoutForm from "@/components/layout/DesignerLayoutForm.vue";
 
 /* -------------------- 常量 -------------------- */
 const LAYOUT_INTENT_MAP = {
@@ -244,104 +170,26 @@ const BASE_URL = 'http://localhost:8181'
 
 /* -------------------- 路由 & Store -------------------- */
 const route = useRoute()
-const houseId = Number(route.params.houseId)
+const houseId = Number(route.params.houseId) // 从路由参数获取房屋ID
 const imageStore = useLayoutImageStore()
 
 /* -------------------- 页面状态 -------------------- */
 const draftLayout = ref(null)
 const designerLayouts = ref([])
-const keepOriginalLayout = ref(null)
-
 const showLayoutDialog = ref(false)
-const currentHouseId = ref(houseId)
-const activeDropdownId = ref(null)
+const currentHouseId = ref(null)
+const chatTargetUserId = ref(null)
+const showChatModal = ref(false)
 
-
-import { nextTick } from 'vue'
-import {payDepositRequest, payFinalRequest} from "@/api/bill";
-import StandardButton from "@/components/button/StandardButton.vue";
-import router from "@/router";
-
+/* -------------------- 图片预览状态 -------------------- */
+const previewUrl = ref(null)
+const showPreview = ref(false)
 
 /* -------------------- 工具函数 -------------------- */
 const urlToFile = async (url, name) => {
   const res = await fetch(url)
   const blob = await res.blob()
   return new File([blob], name, { type: blob.type })
-}
-
-const toggleDropdown = (layoutId) => {
-  activeDropdownId.value =
-      activeDropdownId.value === layoutId ? null : layoutId
-}
-
-
-
-function resolveBillMeta(layout) {
-  // 没有 billId → 没有任何支付相关 UI
-  if (!layout.billId) {
-    console.error('No bill meta data available');
-    layout._billMeta = { visible: false };  // 直接给 draftLayout 添加 _billMeta
-    return;
-  }
-
-  const payStatus = layout.payStatus;
-  console.log(payStatus);
-
-  // 直接将计算的 _billMeta 添加到 layout (draftLayout) 中
-  layout._billMeta = {
-    billId: layout.billId,
-    payStatus,
-    amount: layout.billAmount,
-    depositAmount: layout.depositAmount,
-    canPayDeposit: payStatus === 'UNPAID',
-    depositPaid: payStatus === 'DEPOSIT_PAID'
-  };
-}
-
-
-
-const payDeposit = async (billId) => {
-  const ok = confirm('确认支付定金吗？支付后将进入设计阶段')
-  if (!ok) return
-
-  try {
-    await payDepositRequest(billId) // 你已有的接口
-    showToast.success('定金支付成功')
-    await loadLayouts()
-  } catch (e) {
-    showToast.fail('支付失败，请稍后重试')
-  }
-}
-
-const payFinal = async (billId) => {
-  const ok = confirm('确认支付定金吗？支付后将进入设计阶段')
-  if (!ok) return
-
-  try {
-    await payFinalRequest(billId) // 你已有的接口
-    showToast.success('定金支付成功')
-    await loadLayouts()
-  } catch (e) {
-    showToast.fail('支付失败，请稍后重试')
-  }
-}
-
-// 添加响应式数据
-const showChatModal = ref(false)
-const chatTargetUserId = ref(null)
-
-// 打开与设计师的聊天窗口
-const openChatWithDesigner = () => {
-  if (draftLayout.value && draftLayout.value.designerId) {
-    chatTargetUserId.value = draftLayout.value.designerId
-    showChatModal.value = true
-  }
-}
-
-// 关闭聊天窗口
-const closeChatModal = () => {
-  showChatModal.value = false
 }
 
 /* -------------------- 加载布局 -------------------- */
@@ -356,21 +204,15 @@ const loadLayouts = async () => {
         }
         : null
 
+    console.log('draftLayout', draftLayout.value)
     if (draftLayout.value) {
-      resolveBillMeta(draftLayout.value);  // 这里将 _billMeta 添加到 draftLayout 中
+      currentHouseId.value = draftLayout.value.houseId
     }
 
     designerLayouts.value = (res.designerLayouts || []).map(l => ({
       ...l,
       layoutVersion: l.version ?? 0
     }))
-
-    keepOriginalLayout.value = res.keepOriginalLayout
-        ? {
-          ...res.keepOriginalLayout,
-          layoutVersion: res.keepOriginalLayout.version ?? 0
-        }
-        : null
 
     await loadAllLayoutImages()
   } catch (err) {
@@ -380,11 +222,6 @@ const loadLayouts = async () => {
   }
 }
 
-const goToFurnitureDesign = (layout) =>{
-  router.push({ path: `/furniture/${layout.confirmedLayoutId}` })
-}
-
-
 /* -------------------- 加载图片 -------------------- */
 const loadAllLayoutImages = async () => {
   const ids = []
@@ -393,10 +230,6 @@ const loadAllLayoutImages = async () => {
     ids.push(draftLayout.value.layoutId)
   }
   designerLayouts.value.forEach(l => ids.push(l.layoutId))
-
-  if (keepOriginalLayout.value) {
-    ids.push(keepOriginalLayout.value.layoutId)
-  }
 
   await Promise.all(ids.map(loadLayoutImages))
 }
@@ -416,9 +249,6 @@ const loadLayoutImages = async (layoutId) => {
 }
 
 /* -------------------- 图片预览 -------------------- */
-const previewUrl = ref(null)
-const showPreview = ref(false)
-
 const previewImage = (file) => {
   previewUrl.value = URL.createObjectURL(file)
   showPreview.value = true
@@ -427,69 +257,54 @@ const closePreview = () => {
   showPreview.value = false
 }
 
-/* -------------------- 新增布局 -------------------- */
+/* -------------------- 创建新方案 -------------------- */
 const openLayoutDialog = () => {
-  if (draftLayout.value) {
-    showToast.fail('当前房屋已存在布局')
-    return
-  }
   showLayoutDialog.value = true
 }
 
-const closeLayoutDialog = () =>{
+const closeLayoutDialog = () => {
   showLayoutDialog.value = false
 }
 
 const onLayoutCreated = async () => {
   showLayoutDialog.value = false
-
-  // 等弹窗组件彻底卸载后再改状态
-  await nextTick()
-
   await loadLayouts()
-}
-
-
-/* -------------------- 删除布局 -------------------- */
-const confirmDelete = async (layoutId) => {
-  if (!confirm('确定删除该布局？')) return
-  await deleteLayout(layoutId)
-  await loadLayouts()
-  showToast.success('删除成功')
 }
 
 /* -------------------- 上传图片 -------------------- */
 const uploadImage = async (e, layout) => {
-  if (layout.layoutStatus === 'CONFIRMED' || layout.layoutStatus === 'ARCHIVED') {
-    showToast.fail('当前布局不可编辑')
+  if (!canEditLayout(layout)) {
+    showToast.fail('当前方案不可编辑')
     return
   }
 
   const layoutId = layout.layoutId
-  const file = e.target.files[0]
-  if (!file) return
+  const files = Array.from(e.target.files)
+  if (!files || files.length === 0) return
 
-  const key = Date.now() + '_' + file.name
-  imageStore.addImage(layoutId, {
-    key,
-    file,
-    url: URL.createObjectURL(file)
-  })
-
-  try {
-    const res = await uploadLayoutImage(layoutId, {
+  for(const file of files) {
+    const key = Date.now() + '_' + file.name
+    imageStore.addImage(layoutId, {
+      key,
       file,
-      imageType: 'STRUCTURE',
-      imageDesc: ''
+      url: URL.createObjectURL(file)
     })
 
-    const img = imageStore.images[layoutId].find(i => i.key === key)
-    if (img) img.id = res.imageId
+    try {
+      const res = await uploadLayoutImage(layoutId, {
+        file,
+        imageType: 'STRUCTURE',
+        imageDesc: ''
+      })
 
-    showToast.success('上传成功')
-  } catch {
-    imageStore.removeImage(layoutId, key)
-    showToast.fail('上传失败')
+      const img = imageStore.images[layoutId].find(i => i.key === key)
+      if (img) img.id = res.imageId
+
+      showToast.success('上传成功')
+    } catch {
+      imageStore.removeImage(layoutId, key)
+      showToast.fail('上传失败')
+    }
   }
 
   e.target.value = ''
@@ -497,8 +312,8 @@ const uploadImage = async (e, layout) => {
 
 /* -------------------- 删除图片 -------------------- */
 const removeImage = async (layout, keyOrId) => {
-  if (layout.layoutStatus === 'CONFIRMED' || layout.layoutStatus === 'ARCHIVED') {
-    showToast.fail('当前布局不可编辑')
+  if (!canEditLayout(layout)) {
+    showToast.fail('当前方案不可编辑')
     return
   }
 
@@ -516,15 +331,22 @@ const removeImage = async (layout, keyOrId) => {
 }
 
 
-/* -------------------- 确认布局 -------------------- */
-const confirmLayout = async (layout) => {
-  if(layout.layoutStatus === 'CONFIRMED' || layout.layoutStatus === 'ARCHIVED'){
-    showToast.fail('不可再次确认')
-    return
+/* -------------------- 聊天功能 -------------------- */
+const openChatWithUser = () => {
+  if (draftLayout.value && draftLayout.value.userId) {
+    chatTargetUserId.value = draftLayout.value.userId
+    showChatModal.value = true
   }
-  await confirmLayoutRequest(layout.layoutId)
-  showToast.success('布局已确认')
-  await loadLayouts()
+}
+
+const closeChatModal = () => {
+  showChatModal.value = false
+}
+
+/* -------------------- 辅助函数 -------------------- */
+const canEditLayout = (layout) => {
+  // 设计师只能编辑自己的方案，不能编辑原始布局
+  return layout.layoutStatus !== 'CONFIRMED' && layout.layoutStatus !== 'ARCHIVED'
 }
 
 /* -------------------- 生命周期 -------------------- */
@@ -532,13 +354,14 @@ onMounted(loadLayouts)
 </script>
 
 <style scoped>
-.layouts-container {
+/* 样式部分保持不变 */
+.designer-layouts-container {
   padding: 24px;
   max-width: 1200px;
   margin: 0 auto;
 }
 
-.layouts-content {
+.designer-layouts-content {
   background: #fff;
   border-radius: 8px;
   padding: 24px;
@@ -546,7 +369,7 @@ onMounted(loadLayouts)
   min-height: 600px;
 }
 
-.layouts-content h2 {
+.designer-layouts-content h2 {
   margin: 0 0 8px 0;
   font-size: 20px;
   font-weight: bold;
@@ -604,9 +427,33 @@ onMounted(loadLayouts)
   font-size: 16px;
 }
 
-.user-layout {
-  border: 1px solid #409eff;
-  background-color: #f0f9ff;
+.original-layout {
+  border: 1px solid #e6a23c;
+  background-color: #fdf6ec;
+}
+
+.readonly-note {
+  font-size: 12px;
+  color: #e6a23c;
+  font-style: italic;
+  margin-top: 8px;
+}
+
+.user-info {
+  padding: 10px;
+  background: #f0f9ff;
+  border-radius: 6px;
+  margin: 8px 0;
+}
+
+.user-info p {
+  margin: 4px 0;
+  font-size: 12px;
+  color: #666;
+}
+
+.user-info strong {
+  color: #333;
 }
 
 /* 设计师布局容器 */
@@ -632,6 +479,7 @@ onMounted(loadLayouts)
   border: 1px solid #ccf0fd;
   background-color: #e6f7ff;
 }
+
 .designer-layouts-wrapper h3 {
   margin: 0 0 12px 0;
   font-size: 16px;
@@ -716,38 +564,6 @@ onMounted(loadLayouts)
   font-size: 20px;
 }
 
-.actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #eee;
-}
-
-.actions button {
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid #dcdfe6;
-  cursor: pointer;
-  background: #fff;
-  font-size: 12px;
-  transition: all 0.3s ease;
-}
-
-.actions button:hover {
-  background: #f5f7fa;
-}
-
-.actions .danger {
-  border-color: #f56c6c;
-  color: #f56c6c;
-}
-
-.actions .danger:hover {
-  background: #fef0f0;
-  color: #f56c6c;
-}
-
 .no-layout {
   width: 100%;
   text-align: center;
@@ -800,70 +616,24 @@ onMounted(loadLayouts)
   margin-bottom: 8px;
 }
 
-.actions-wrapper {
-  position: relative;
-  cursor: pointer;
-}
-
-.dot-btn {
-  font-size: 20px;
-  padding: 4px;
-  user-select: none;
-}
-
-.dropdown {
-  position: absolute;
-  top: 24px;
-  right: 0;
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  display: flex;
-  flex-direction: column;
-  z-index: 10;
-}
-
-.dropdown button {
-  background: none;
-  border: none;
-  padding: 8px 12px;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.2s;
+.notes-input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  resize: vertical;
+  min-height: 60px;
   font-size: 12px;
+  margin-top: 8px;
 }
 
-.dropdown button:hover {
-  background: #f5f5f5;
-}
-
-.bill-box {
-  margin-top: 12px;
-  padding: 12px;
-  background-color: #f5f5f5;
-  border-radius: 6px;
-  border-left: 3px solid #66ccff;
-}
-
-.bill-title {
-  font-weight: bold;
-  margin-bottom: 8px;
-  color: #333;
-}
-
-.bill-hint {
-  font-size: 12px;
-  color: #666;
-  margin: 8px 0;
-}
-
-.bill-hint.success {
-  color: #67c23a;
+.notes-input:focus {
+  outline: none;
+  border-color: #409eff;
 }
 
 .chat-btn {
-  margin-left: 10px;
+  margin-top: 8px;
   padding: 4px 8px;
   background: #409eff;
   color: white;
@@ -928,7 +698,7 @@ onMounted(loadLayouts)
   gap: 12px;
 }
 
-.designer-avatar {
+.user-avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -938,7 +708,7 @@ onMounted(loadLayouts)
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-  .layouts-container {
+  .designer-layouts-container {
     padding: 16px;
   }
 

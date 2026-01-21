@@ -1,3 +1,4 @@
+<!-- src/layouts/UserTypeTopNav.vue -->
 <template>
   <header class="top-nav">
     <div class="nav-left">
@@ -5,10 +6,14 @@
     </div>
 
     <nav class="nav-center">
-      <div class="menu-item" @click="goPage('/')">首页</div>
-      <div class="menu-item" @click="goPage('/houses')">我的房屋</div>
-      <div class="menu-item" @click="goPage('/profile')">个人信息</div>
-      <div class="menu-item" @click="goPage('/contact')">联系</div>
+      <div
+        v-for="item in menuItems"
+        :key="item.path"
+        class="menu-item"
+        @click="goPage(item.path)"
+      >
+        {{ item.label }}
+      </div>
     </nav>
 
     <div class="nav-right">
@@ -19,9 +24,9 @@
         <div class="user-info">
           <!-- 显示存储在 Pinia 的头像 -->
           <img
-              v-if="userStore.user.avatarFile"
-              :src="avatarUrl"
-              class="avatar"
+            v-if="userStore.user.avatarFile"
+            :src="avatarUrl"
+            class="avatar"
           />
           <span class="user-name">{{ userStore.user.userName }}</span>
         </div>
@@ -41,14 +46,14 @@
       <div class="modal-body">
         <Transition name="form-switch" mode="out-in">
           <LoginForm
-              v-if="isLogin"
-              key="login"
-              @success="onSuccess"
+            v-if="isLogin"
+            key="login"
+            @success="onSuccess"
           />
           <RegisterForm
-              v-else
-              key="register"
-              @success="onSuccess"
+            v-else
+            key="register"
+            @success="onSuccess"
           />
         </Transition>
       </div>
@@ -73,7 +78,31 @@ const userStore = useUserStore();
 const showDialog = ref(false);
 const isLogin = ref(true);
 
-const openLogin = () => { showDialog.value = true; isLogin.value = true };
+// 根据用户角色定义菜单项
+const menuItems = computed(() => {
+  if (userStore.user?.role === 'DESIGNER') {
+    // 设计师菜单
+    return [
+      { path: '/', label: '首页' },
+      { path: '/design', label: '设计' },
+      { path: '/profile', label: '个人信息' },
+      { path: '/contact', label: '联系' }
+    ];
+  } else {
+    // 普通用户菜单
+    return [
+      { path: '/', label: '首页' },
+      { path: '/houses', label: '我的房屋' },
+      { path: '/profile', label: '个人信息' },
+      { path: '/contact', label: '联系' }
+    ];
+  }
+});
+
+const openLogin = () => {
+  showDialog.value = true;
+  isLogin.value = true;
+};
 
 // 登出
 const logout = () => {
@@ -116,6 +145,7 @@ const avatarUrl = computed(() => {
 </script>
 
 <style scoped>
+/* 复用原有的样式 */
 /* === TopNav === */
 .top-nav {
   display: flex;

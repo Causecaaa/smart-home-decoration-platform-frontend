@@ -1,3 +1,234 @@
+<template>
+  <TopNav />
+
+  <div class="furniture-design-container">
+    <div class="furniture-design-content">
+      <div class="header">
+        <h2>家具设计</h2>
+      </div>
+
+      <div class="layout-and-rooms-container">
+        <!-- 用户家具布局卡片 -->
+        <div v-if="layoutDetail" class="layout-item user-layout">
+          <div class="layout-header">
+            <h3>家具设计方案</h3>
+          </div>
+
+          <div class="images" v-if="imageStore.images[layoutDetail.layoutId]?.length > 0">
+            <div
+                v-for="(img, index) in imageStore.images[layoutDetail.layoutId] || []"
+                :key="img.id ?? img.key ?? index"
+                class="image-wrapper"
+            >
+              <img :src="img.url" class="image" @click="previewImage(img.file)" />
+            </div>
+          </div>
+
+          <!-- 显示设计师信息或提示 -->
+          <div v-if="layoutDetail.furnitureDesignerId" class="designer-info">
+            <!-- 显示设计师信息或提示 -->
+            <div v-if="layoutDetail.furnitureDesignerId" class="designer-info">
+
+                <div style="padding-bottom: 10px">
+                  设计师：{{ layoutDetail.designerUsername }}（{{ layoutDetail.designerEmail }}）
+                </div>
+                <button
+                    class="chat-btn"
+                    @click="openChatWithDesigner"
+                    v-if="layoutDetail.furnitureDesignerId"
+                >
+                  💬 联系设计师
+                </button>
+
+              <!-- 其他内容保持不变 -->
+            </div>
+
+
+            <p class="status" style="padding-top: 20px">状态：设计师正在为您准备家具设计方案</p>
+
+
+
+
+            <!-- 💰 订单状态区 -->
+            <div class="bill-box">
+              <div class="bill-title">💰 家具设计方案费用</div>
+              <!-- 防止 _billMeta 为空 -->
+              <div v-if="layoutDetail.payStatus === 'UNPAID'">
+                <p>总价：¥{{ layoutDetail.billAmount }}</p>
+                <p>定金：¥{{ layoutDetail.depositAmount }}</p>
+                <p class="bill-hint">支付定金后，设计师将开始家具方案设计</p>
+                <button class="btn" @click="payDeposit(layoutDetail.billId)">支付定金</button>
+              </div>
+              <div v-else-if="layoutDetail.payStatus === 'DEPOSIT_PAID'">
+                <p>已支付定金：¥{{ layoutDetail.depositAmount }}</p>
+                <!-- 检查是否所有方案都已确认 -->
+                <div v-if="layoutDetail.furnitureStatus === 'CONFIRMED'">
+                  <p class="bill-hint">✅ 所有方案已确认，可支付尾款</p>
+                  <button class="btn btn-primary" @click="payFinalAmount(layoutDetail.billId)">支付尾款</button>
+                </div>
+                <div v-else>
+                  <p class="bill-hint">设计师正在出方案，确认所有方案后需支付尾款</p>
+                </div>
+              </div>
+              <div v-else-if="layoutDetail.payStatus === 'PAID'">
+                <p>总价：¥{{ layoutDetail.billAmount }}</p>
+                <p class="bill-hint success">
+                  ✅ 费用已全部结清<br>
+                  已完成家具方案设计
+                </p>
+              </div>
+            </div>
+
+          </div>
+          <div v-else class="no-designer-info">
+            <p>⚠️ 尚未选择家具设计师</p>
+            <button class="select-designer-btn" @click="openDesignerDialog">
+              选择设计师
+            </button>
+          </div>
+        </div>
+
+        <!-- 房间信息展示区域 -->
+        <div v-if="rooms.length > 0" class="rooms-container">
+          <h3>房间信息</h3>
+          <div class="room-list">
+            <div v-for="room in rooms" :key="room.roomId" class="room-item">
+              <div class="room-header">
+                <h4>{{ room.roomName }} ({{ room.roomType }})</h4>
+                <span class="room-status" :class="getRoomStatus(room).class">
+                  {{ getRoomStatus(room).text }}
+                </span>
+
+              </div>
+              <div class="room-details">
+                <p>面积：{{ room.area }}㎡</p>
+                <p>楼层：{{ room.floorNo }}</p>
+                <p>窗户：{{ room.hasWindow ? '有' : '无' }}</p>
+                <div class="detail-row">
+                  <span>阳台：{{ room.hasBalcony ? '有' : '无' }}</span>
+                  <button v-if="room.hasFurnitureScheme" class="view-scheme-btn" @click="viewSchemes(room)">查看方案</button>
+                </div>
+              </div>
+            </div>
+
+
+
+          </div>
+        </div>
+
+        <!-- 空状态 -->
+        <p v-if="!layoutDetail" class="no-layout">
+          还没有家具设计信息
+        </p>
+      </div>
+
+      <!-- 设计师选择弹窗 -->
+      <div v-if="showDesignerDialog" class="overlay" @click.self="closeDesignerDialog">
+        <div class="modal">
+          <div class="modal-header">
+            <span>选择家具设计师</span>
+            <span class="close" @click="closeDesignerDialog">×</span>
+          </div>
+          <div class="modal-body">
+            <DesignerSelector
+                :designers="designers"
+                v-model="selectedDesignerId"
+                @select="handleSelectDesigner"
+            />
+          </div>
+        </div>
+      </div>
+
+
+      <!-- 图片预览弹窗使用更高的层级 -->
+      <div v-if="showImagePreview" class="overlay image-preview-overlay" @click="closeImagePreview">
+        <div class="modal" @click.stop>
+          <img :src="previewImageUrl" style="max-width: 100%; max-height: 80vh;" />
+        </div>
+      </div>
+
+      <!-- 布局图片预览弹窗 -->
+      <div v-if="showPreview" class="overlay" @click.self="closePreview">
+        <div class="modal">
+          <img :src="previewUrl" style="max-width: 100%; max-height: 80vh;" />
+        </div>
+      </div>
+
+      <!-- 聊天悬浮窗 -->
+      <div v-if="showChatModal" class="chat-overlay" @click.self="closeChatModal">
+        <div class="chat-modal">
+          <div class="chat-header">
+            <div class="chat-header-info">
+              <img
+                  :src="`${BASE_URL}${layoutDetail.avatarUrl || '/uploads/avatar/default.png'}`"
+                  alt="设计师头像"
+                  class="designer-avatar"
+                  @error="onAvatarError"
+              />
+              <span>与设计师 {{ layoutDetail.designerUsername }} 聊天</span>
+            </div>
+            <span class="close-chat" @click="closeChatModal">×</span>
+          </div>
+          <div class="chat-body">
+            <ChatView :target-user-id="chatTargetUserId" />
+          </div>
+        </div>
+      </div>
+
+
+
+      <!-- 查看方案悬浮窗 -->
+      <div v-if="showSchemeModal" class="overlay" @click="closeSchemeModal">
+        <div class="modal scheme-modal" @click.stop>
+          <div class="modal-header">
+            <span>{{ currentRoom?.roomName }} - 方案列表</span>
+            <span class="close" @click="closeSchemeModal">×</span>
+          </div>
+          <div class="modal-body scheme-modal-body">
+            <div v-if="currentRoomSchemes.length > 0" class="scheme-list">
+              <div v-for="scheme in currentRoomSchemes" :key="scheme.schemeId" class="scheme-item">
+                <!-- 第一行：信息和确认按钮 -->
+                <div class="scheme-header">
+                  <div class="scheme-info">
+                    <p>版本: V{{ scheme.schemeVersion }}</p>
+                    <p>状态: {{ scheme.schemeStatus === 'SUBMITTED' ? '已提交' : scheme.schemeStatus }}</p>
+                    <p>创建时间: {{ new Date(scheme.createdAt).toLocaleString() }}</p>
+                  </div>
+                  <!-- 确认按钮：仅在方案状态为SUBMITTED时显示 -->
+                  <div class="scheme-actions" v-if="scheme.schemeStatus === 'SUBMITTED'">
+                    <button class="confirm-btn" @click="confirmScheme(scheme.schemeId)">确认方案</button>
+                  </div>
+                </div>
+
+                <!-- 图片区域 -->
+                <div v-if="scheme.imageUrl" class="scheme-image">
+                  <img
+                      :src="getImageUrl(scheme.schemeId)"
+                      alt="方案图片"
+                      @click="previewImageFromCache(scheme.schemeId)"
+                  />
+                </div>
+
+                <div v-else class="no-image">
+                  <p>暂无图片</p>
+                </div>
+              </div>
+
+            </div>
+            <div v-else class="no-schemes">
+              <p>暂无方案</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+
+
+    </div>
+  </div>
+</template>
+
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
@@ -16,6 +247,7 @@ import {
 } from '@/api/furniture'
 // 导入聊天组件
 import ChatView from '@/components/ChatView.vue'
+import {getLayoutImages} from "@/api/layoutImage";
 
 // 添加响应式数据
 const showChatModal = ref(false)
@@ -39,11 +271,17 @@ const rooms = ref([])  // 添加房间数组
 const showImagePreview = ref(false)
 const previewImageUrl = ref('')
 
+const showPreview = ref(false)
+const previewUrl = ref(null)
+
 // 添加悬浮窗状态
 const showSchemeModal = ref(false)
 const currentRoomSchemes = ref([])
 const currentRoom = ref(null)
 
+
+
+// 加载布局详情
 // 加载布局详情
 const loadLayoutDetail = async () => {
   try {
@@ -61,11 +299,15 @@ const loadLayoutDetail = async () => {
     if (res.furnitureDesignerId) {
       await loadRooms()
     }
+
+    // 加载布局图片
+    await loadAllLayoutImages()
   } catch (error) {
     showToast.fail('加载布局详情失败')
     console.error(error)
   }
 }
+
 
 // 加载房间信息
 const loadRooms = async () => {
@@ -115,6 +357,39 @@ const urlToFile = async (url, name) => {
   const blob = await res.blob()
   return new File([blob], name, { type: blob.type })
 }
+
+
+// 加载布局图片
+const loadLayoutImages = async (layoutId) => {
+  try {
+    const imgList = await getLayoutImages(layoutId)
+
+    const formatted = await Promise.all(
+        imgList.map(async img => {
+          const fullUrl = BASE_URL + img.imageUrl
+          const file = await urlToFile(fullUrl, `image_${img.imageId}.jpg`)
+          return { id: img.imageId, url: fullUrl, file }
+        })
+    )
+
+    imageStore.setImages(layoutId, formatted)
+  } catch (error) {
+    console.error('加载布局图片失败:', error)
+  }
+}
+
+const loadAllLayoutImages = async () => {
+  if (layoutDetail.value) {
+    await loadLayoutImages(layoutDetail.value.layoutId)
+  }
+}
+
+// 图片预览
+const previewImage = (file) => {
+  previewUrl.value = URL.createObjectURL(file)
+  showPreview.value = true
+}
+
 
 // 添加图片加载方法
 const loadSchemeImages = async (roomId, schemes) => {
@@ -284,232 +559,47 @@ const closeImagePreview = () => {
   }
 }
 
+// 关闭预览
+const closePreview = () => {
+  showPreview.value = false
+  if (previewUrl.value) {
+    URL.revokeObjectURL(previewUrl.value)
+    previewUrl.value = ''
+  }
+}
+
 onMounted(() => {
   loadLayoutDetail()
 })
 </script>
 
-
-<template>
-  <TopNav />
-
-  <div class="furniture-design-page">
-    <div class="header">
-      <h2>家具设计方案</h2>
-    </div>
-
-    <div class="layout-and-rooms-container">
-      <!-- 用户家具布局卡片 -->
-      <div v-if="layoutDetail" class="layout-item user-layout">
-        <div class="layout-header">
-          <h3>家具设计方案</h3>
-        </div>
-
-        <!-- 显示设计师信息或提示 -->
-        <div v-if="layoutDetail.furnitureDesignerId" class="designer-info">
-          <p>设计师：{{ layoutDetail.designerUsername }}（{{ layoutDetail.designerEmail }}）</p>
-          <!-- 显示设计师信息或提示 -->
-          <div v-if="layoutDetail.furnitureDesignerId" class="designer-info">
-            <p>
-              设计师：{{ layoutDetail.designerUsername }}（{{ layoutDetail.designerEmail }}）
-              <button
-                  class="chat-btn"
-                  @click="openChatWithDesigner"
-                  v-if="layoutDetail.furnitureDesignerId"
-              >
-                💬 联系设计师
-              </button>
-            </p>
-            <!-- 其他内容保持不变 -->
-          </div>
-
-
-          <p class="status">状态：设计师正在为您准备家具设计方案</p>
-
-          <!-- 💰 订单状态区 -->
-          <div class="bill-box">
-            <div class="bill-title">💰 家具设计方案费用</div>
-            <!-- 防止 _billMeta 为空 -->
-            <div v-if="layoutDetail.payStatus === 'UNPAID'">
-              <p>总价：¥{{ layoutDetail.billAmount }}</p>
-              <p>定金：¥{{ layoutDetail.depositAmount }}</p>
-              <p class="bill-hint">支付定金后，设计师将开始家具方案设计</p>
-              <button class="btn" @click="payDeposit(layoutDetail.billId)">支付定金</button>
-            </div>
-            <div v-else-if="layoutDetail.payStatus === 'DEPOSIT_PAID'">
-              <p>已支付定金：¥{{ layoutDetail.depositAmount }}</p>
-              <!-- 检查是否所有方案都已确认 -->
-              <div v-if="layoutDetail.furnitureStatus === 'CONFIRMED'">
-                <p class="bill-hint">✅ 所有方案已确认，可支付尾款</p>
-                <button class="btn btn-primary" @click="payFinalAmount(layoutDetail.billId)">支付尾款</button>
-              </div>
-              <div v-else>
-                <p class="bill-hint">设计师正在出方案，确认所有方案后需支付尾款</p>
-              </div>
-            </div>
-            <div v-else-if="layoutDetail.payStatus === 'PAID'">
-              <p>总价：¥{{ layoutDetail.billAmount }}</p>
-              <p class="bill-hint success">
-                ✅ 费用已全部结清<br>
-                已完成家具方案设计
-              </p>
-            </div>
-          </div>
-
-        </div>
-        <div v-else class="no-designer-info">
-          <p>⚠️ 尚未选择家具设计师</p>
-          <button class="select-designer-btn" @click="openDesignerDialog">
-            选择设计师
-          </button>
-        </div>
-      </div>
-
-      <!-- 房间信息展示区域 -->
-      <div v-if="rooms.length > 0" class="rooms-container">
-        <h3>房间信息</h3>
-        <div class="room-list">
-          <div v-for="room in rooms" :key="room.roomId" class="room-item">
-            <div class="room-header">
-              <h4>{{ room.roomName }} ({{ room.roomType }})</h4>
-              <span class="room-status" :class="getRoomStatus(room).class">
-                {{ getRoomStatus(room).text }}
-              </span>
-
-            </div>
-            <div class="room-details">
-              <p>面积：{{ room.area }}㎡</p>
-              <p>楼层：{{ room.floorNo }}</p>
-              <p>窗户：{{ room.hasWindow ? '有' : '无' }}</p>
-              <div class="detail-row">
-                <span>阳台：{{ room.hasBalcony ? '有' : '无' }}</span>
-                <button v-if="room.hasFurnitureScheme" class="view-scheme-btn" @click="viewSchemes(room)">查看方案</button>
-              </div>
-            </div>
-          </div>
-
-
-
-        </div>
-      </div>
-
-      <!-- 空状态 -->
-      <p v-if="!layoutDetail" class="no-layout">
-        还没有家具设计信息
-      </p>
-    </div>
-
-    <!-- 设计师选择弹窗 -->
-    <div v-if="showDesignerDialog" class="overlay" @click.self="closeDesignerDialog">
-      <div class="modal">
-        <div class="modal-header">
-          <span>选择家具设计师</span>
-          <span class="close" @click="closeDesignerDialog">×</span>
-        </div>
-        <div class="modal-body">
-          <DesignerSelector
-              :designers="designers"
-              v-model="selectedDesignerId"
-              @select="handleSelectDesigner"
-          />
-        </div>
-      </div>
-    </div>
-
-
-    <!-- 图片预览弹窗使用更高的层级 -->
-    <div v-if="showImagePreview" class="overlay image-preview-overlay" @click="closeImagePreview">
-      <div class="modal" @click.stop>
-        <img :src="previewImageUrl" style="max-width: 100%; max-height: 80vh;" />
-      </div>
-    </div>
-
-    <!-- 聊天悬浮窗 -->
-    <div v-if="showChatModal" class="chat-overlay" @click.self="closeChatModal">
-      <div class="chat-modal">
-        <div class="chat-header">
-          <div class="chat-header-info">
-            <img
-                :src="`${BASE_URL}${layoutDetail.avatarUrl || '/uploads/avatar/default.png'}`"
-                alt="设计师头像"
-                class="designer-avatar"
-                @error="onAvatarError"
-            />
-            <span>与设计师 {{ layoutDetail.designerUsername }} 聊天</span>
-          </div>
-          <span class="close-chat" @click="closeChatModal">×</span>
-        </div>
-        <div class="chat-body">
-          <ChatView :target-user-id="chatTargetUserId" />
-        </div>
-      </div>
-    </div>
-
-
-
-    <!-- 查看方案悬浮窗 -->
-    <div v-if="showSchemeModal" class="overlay" @click="closeSchemeModal">
-      <div class="modal scheme-modal" @click.stop>
-        <div class="modal-header">
-          <span>{{ currentRoom?.roomName }} - 方案列表</span>
-          <span class="close" @click="closeSchemeModal">×</span>
-        </div>
-        <div class="modal-body scheme-modal-body">
-          <div v-if="currentRoomSchemes.length > 0" class="scheme-list">
-            <div v-for="scheme in currentRoomSchemes" :key="scheme.schemeId" class="scheme-item">
-              <!-- 第一行：信息和确认按钮 -->
-              <div class="scheme-header">
-                <div class="scheme-info">
-                  <p>版本: V{{ scheme.schemeVersion }}</p>
-                  <p>状态: {{ scheme.schemeStatus === 'SUBMITTED' ? '已提交' : scheme.schemeStatus }}</p>
-                  <p>创建时间: {{ new Date(scheme.createdAt).toLocaleString() }}</p>
-                </div>
-                <!-- 确认按钮：仅在方案状态为SUBMITTED时显示 -->
-                <div class="scheme-actions" v-if="scheme.schemeStatus === 'SUBMITTED'">
-                  <button class="confirm-btn" @click="confirmScheme(scheme.schemeId)">确认方案</button>
-                </div>
-              </div>
-
-              <!-- 图片区域 -->
-              <div v-if="scheme.imageUrl" class="scheme-image">
-                <img
-                    :src="getImageUrl(scheme.schemeId)"
-                    alt="方案图片"
-                    @click="previewImageFromCache(scheme.schemeId)"
-                />
-              </div>
-
-              <div v-else class="no-image">
-                <p>暂无图片</p>
-              </div>
-            </div>
-
-          </div>
-          <div v-else class="no-schemes">
-            <p>暂无方案</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-
-
-
-  </div>
-</template>
-
-
-
-
 <style scoped>
-.furniture-design-page {
+.furniture-design-container {
   padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.furniture-design-content {
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  min-height: 600px;
+}
+
+.furniture-design-content h2 {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+  font-weight: bold;
 }
 
 .header {
   display: flex;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #eee;
 }
 
 .layout-and-rooms-container {
@@ -520,22 +610,31 @@ onMounted(() => {
 
 .layout-item {
   width: 280px;
-  padding: 16px;
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   height: auto;
+  transition: all 0.3s ease;
+}
+
+.layout-item:hover {
+  border-color: #409eff;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.1);
 }
 
 .layout-item h3 {
   font-weight: bold;
+  margin: 0 0 8px 0;
+  color: #1e1e2f;
+  font-size: 16px;
 }
 
 .user-layout {
-  border: 2px solid #409eff;
+  border: 1px solid #409eff;
   background-color: #f0f9ff;
 }
 
@@ -549,6 +648,8 @@ onMounted(() => {
 .designer-info p,
 .no-designer-info p {
   margin: 4px 0;
+  color: #666;
+  font-size: 13px;
 }
 
 .status {
@@ -568,6 +669,7 @@ onMounted(() => {
   border: none;
   border-radius: 6px;
   cursor: pointer;
+  font-size: 13px;
 }
 
 .select-designer-btn:hover {
@@ -578,11 +680,10 @@ onMounted(() => {
   flex: 1;
   min-width: 600px;
   padding: 16px;
-  background: linear-gradient(135deg, #e6f7ff, #fff0f6); /* 淡蓝到淡粉渐变 */
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  background: #f9f9f9;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
 }
-
 
 .room-list {
   display: flex;
@@ -599,7 +700,13 @@ onMounted(() => {
   border-radius: 8px;
   background-color: #fafafa;
   flex-basis: calc(25% - 12px); /* 默认每行4个 */
-  border: 2px solid #ccf0fd;
+  border: 1px solid #ccf0fd;
+  transition: all 0.3s ease;
+}
+
+.room-item:hover {
+  border-color: #409eff;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
 }
 
 /* 响应式调整：不同屏幕尺寸下的房间数量 */
@@ -639,6 +746,7 @@ onMounted(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: #1e1e2f;
 }
 
 .room-status {
@@ -664,6 +772,8 @@ onMounted(() => {
 
 .room-details p {
   margin: 4px 0;
+  color: #666;
+  font-size: 12px;
 }
 
 .overlay {
@@ -675,7 +785,6 @@ onMounted(() => {
   align-items: center;
   z-index: 999;
 }
-
 
 .modal {
   background: #fff;
@@ -691,6 +800,8 @@ onMounted(() => {
   justify-content: space-between;
   font-weight: bold;
   margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
 }
 
 .modal-header .close {
@@ -714,8 +825,8 @@ onMounted(() => {
   margin-top: 12px;
   padding: 12px;
   background-color: #f5f5f5;
-  border-radius: 8px;
-  border-left: 4px solid #409eff;
+  border-radius: 6px;
+  border-left: 3px solid #409eff;
 }
 
 .bill-title {
@@ -736,12 +847,14 @@ onMounted(() => {
 
 .btn {
   margin-top: 8px;
-  padding: 6px 12px;
+  padding: 6px 10px;
   background: #409eff;
   color: #fff;
   border: none;
   border-radius: 6px;
   cursor: pointer;
+  font-size: 12px;
+  text-align: center;
 }
 
 .btn:hover {
@@ -757,25 +870,26 @@ onMounted(() => {
 
 .detail-row span {
   flex: 1;
+  color: #666;
+  font-size: 12px;
 }
 
 .view-scheme-btn {
-  padding: 6px 10px;
+  padding: 4px 8px;
   background: #409eff;
   color: #fff;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
-  margin-left: 8px;
   white-space: nowrap;
-  height: 28px; /* 设置固定高度 */
+  height: 26px;
+  transition: background 0.3s;
 }
 
 .view-scheme-btn:hover {
   background: #66b1ff;
 }
-
 
 .scheme-modal {
   width: 600px;
@@ -802,6 +916,12 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  transition: all 0.3s ease;
+}
+
+.scheme-item:hover {
+  border-color: #409eff;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
 }
 
 .scheme-header {
@@ -844,6 +964,11 @@ onMounted(() => {
   object-fit: contain;
   border-radius: 4px;
   border: 1px solid #eee;
+  cursor: pointer;
+}
+
+.scheme-image img:hover {
+  opacity: 0.9;
 }
 
 .no-image {
@@ -860,7 +985,6 @@ onMounted(() => {
   padding: 40px 0;
 }
 
-
 .confirm-btn {
   padding: 4px 8px;
   background: #52c41a;
@@ -869,6 +993,7 @@ onMounted(() => {
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
+  transition: background 0.3s;
 }
 
 .confirm-btn:hover {
@@ -884,6 +1009,7 @@ onMounted(() => {
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
+  transition: background 0.3s;
 }
 
 .chat-btn:hover {
@@ -949,4 +1075,51 @@ onMounted(() => {
   padding: 16px;
 }
 
+/* 添加图片相关的样式 */
+.images {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+  justify-content: flex-start;
+}
+
+.image-wrapper {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid #ddd;
+}
+
+.image:hover {
+  opacity: 0.8;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .furniture-design-container {
+    padding: 16px;
+  }
+
+  .layout-and-rooms-container {
+    flex-direction: column;
+  }
+
+  .rooms-container {
+    min-width: 100%;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
 </style>

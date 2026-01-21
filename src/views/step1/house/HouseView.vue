@@ -1,64 +1,66 @@
 <template>
   <TopNav class="top-nav" />
-  <div class="houses-page">
+  <div class="houses-container">
+    <div class="houses-content">
+      <div class="header">
+        <h2>我的房屋</h2>
+        <!-- 新增按钮常驻 -->
+        <button class="add-btn" @click="openDialog('add')">新增房屋</button>
+      </div>
 
-    <div class="header">
-      <h2>我的房屋</h2>
-      <!-- 新增按钮常驻 -->
-      <button class="add-btn" @click="openDialog('add')">新增房屋</button>
-    </div>
-
-    <div class="house-list">
-      <div
+      <div class="house-list">
+        <div
           class="house-item"
           v-for="house in houses"
           :key="house.houseId"
-      >
-        <h3>{{ house.city }} * {{ house.communityName }}</h3>
-        <p> {{ house.layoutType }} | {{ house.area }}㎡</p>
-        <p>{{ house.buildingNo }}栋 · {{ house.unitNo }}单元 · {{ house.roomNo }}</p>
-        <p>装修类型：{{ DECORATION_MAP[house.decorationType] || house.decorationType }}</p>
-        <p>楼层：{{ house.floorCount }}</p>
+        >
+          <h3>{{ house.city }} * {{ house.communityName }}</h3>
+          <p> {{ house.layoutType }} | {{ house.area }}㎡</p>
+          <p>{{ house.buildingNo }}栋 · {{ house.unitNo }}单元 · {{ house.roomNo }}</p>
+          <p>装修类型：{{ DECORATION_MAP[house.decorationType] || house.decorationType }}</p>
+          <p>楼层：{{ house.floorCount }}</p>
 
-        <!-- ⭐ 主行动：跳转布局页面 -->
-        <button class="design-btn" @click="goLayoutPage(house.houseId)">
-          布局设计
-        </button>
-        <button class="design-btn" @click="goFurniturePage(house)">
-          家具设计
-        </button>
+          <!-- ⭐ 主行动：跳转布局页面 -->
+          <div class="design-buttons">
+            <button class="design-btn" @click="goLayoutPage(house.houseId)">
+              布局设计
+            </button>
+            <button class="design-btn furniture-btn" @click="goFurniturePage(house)">
+              家具设计
+            </button>
+          </div>
 
-        <!-- 编辑/删除按钮 -->
-        <div class="actions">
-          <button @click="openDialog('edit', house)">编辑</button>
-          <button class="danger" @click="confirmDelete(house.houseId)">删除</button>
+          <!-- 编辑/删除按钮 -->
+          <div class="actions">
+            <button @click="openDialog('edit', house)">编辑</button>
+            <button class="danger" @click="confirmDelete(house.houseId)">删除</button>
+          </div>
         </div>
+
+        <!-- 房屋列表为空时显示 -->
+        <p v-if="houses.length === 0" class="no-house">
+          还没有房屋信息，快去新增吧～
+        </p>
       </div>
 
-      <!-- 房屋列表为空时显示 -->
-      <p v-if="houses.length === 0" class="no-house">
-        还没有房屋信息，快去新增吧～
-      </p>
-    </div>
+      <!-- 弹窗 -->
+      <div v-if="showDialog" class="overlay" @click.self="closeDialog">
+        <div class="modal">
+          <div class="modal-header">
+            <span>{{ dialogMode === 'edit' ? '编辑房屋' : '新增房屋' }}</span>
+            <span class="close" @click="closeDialog">×</span>
+          </div>
 
-    <!-- 弹窗 -->
-    <div v-if="showDialog" class="overlay" @click.self="closeDialog">
-      <div class="modal">
-        <div class="modal-header">
-          <span>{{ dialogMode === 'edit' ? '编辑房屋' : '新增房屋' }}</span>
-          <span class="close" @click="closeDialog">×</span>
-        </div>
-
-        <div class="modal-body">
-          <HouseForm
+          <div class="modal-body">
+            <HouseForm
               v-if="showDialog"
               :house="currentHouse"
               @success="onFormSuccess"
-          />
+            />
+          </div>
         </div>
       </div>
     </div>
-
   </div>
 </template>
 
@@ -141,14 +143,32 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.houses-page {
+.houses-container {
   padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.houses-content {
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  min-height: 600px;
+}
+
+.houses-content h2 {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+  font-weight: bold;
 }
 
 .header {
   display: flex;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #eee;
 }
 
 .add-btn {
@@ -159,60 +179,107 @@ onMounted(() => {
   border-radius: 6px;
   border: none;
   cursor: pointer;
+  font-size: 13px;
 }
 
 .house-list {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
 }
 
 .house-item {
-  width: 280px;
-  padding: 16px;
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  transition: all 0.3s ease;
 }
+
+.house-item:hover {
+  border-color: #409eff;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.1);
+}
+
+.house-item h3 {
+  margin: 0 0 8px 0;
+  color: #1e1e2f;
+  font-size: 16px;
+}
+
+.house-item p {
+  margin: 0;
+  color: #666;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* 设计按钮容器 */
+.design-buttons {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+}
+
 .design-btn {
+  flex: 1;
   margin-top: 12px;
-  padding: 8px 0;
-  border-radius: 8px;
+  padding: 5px 10px;
+  border-radius: 6px;
   border: none;
-  background: linear-gradient(135deg, #409eff, #66b1ff);
+  background: #409eff;
   color: #fff;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 13px;
 }
 
 .design-btn:hover {
-  opacity: 0.9;
+  background: #66b1ff;
+}
+
+.design-btn.furniture-btn {
+  background: #52c41a;
+}
+
+.design-btn.furniture-btn:hover {
+  background: #73d13d;
 }
 
 .actions {
   display: flex;
   gap: 8px;
-  margin-top: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
 }
 
 .actions button {
   padding: 4px 10px;
   border-radius: 6px;
-  border: none;
+  border: 1px solid #dcdfe6;
   cursor: pointer;
-  background: #f0f0f0;
-}
-
-.actions .danger {
-  background: #ffeaea;
-  color: #d93026;
+  background: #fff;
+  font-size: 12px;
+  transition: all 0.3s ease;
 }
 
 .actions button:hover {
-  background: #e0e0e0;
+  background: #f5f7fa;
+}
+
+.actions .danger {
+  border-color: #f56c6c;
+  color: #f56c6c;
+}
+
+.actions .danger:hover {
+  background: #fef0f0;
+  color: #f56c6c;
 }
 
 .no-house {
@@ -220,6 +287,7 @@ onMounted(() => {
   text-align: center;
   color: #888;
   margin-top: 40px;
+  grid-column: 1 / -1;
 }
 
 /* 弹窗覆盖层 */
@@ -247,10 +315,33 @@ onMounted(() => {
   justify-content: space-between;
   font-weight: bold;
   margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
 }
 
 .modal-header .close {
   cursor: pointer;
   font-size: 20px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .houses-container {
+    padding: 16px;
+  }
+
+  .house-list {
+    grid-template-columns: 1fr;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .add-btn {
+    margin-left: 0;
+    margin-top: 12px;
+  }
 }
 </style>
