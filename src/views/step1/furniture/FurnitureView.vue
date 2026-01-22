@@ -241,7 +241,7 @@ import { useLayoutImageStore } from '@/stores/layoutImageStore'
 import {
   assignFurnitureDesigner,
   confirmFurnitureScheme,
-  getFurnitureLayoutById,
+  getUserFurnitureLayoutById,
   getRoomsByLayout,
   getSchemesByRoom
 } from '@/api/furniture'
@@ -285,7 +285,7 @@ const currentRoom = ref(null)
 // 加载布局详情
 const loadLayoutDetail = async () => {
   try {
-    const res = await getFurnitureLayoutById(layoutId)
+    const res = await getUserFurnitureLayoutById(layoutId)
     layoutDetail.value = res
 
     // 如果没有指定家具设计师，则加载设计师列表

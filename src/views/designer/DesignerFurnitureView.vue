@@ -37,8 +37,8 @@
 
           <!-- 客户信息 -->
           <div class="client-info">
-            <p><strong>客户：</strong>{{ layoutDetail.userName }}</p>
-            <p><strong>联系方式：</strong>{{ layoutDetail.phone }} | {{ layoutDetail.email }}</p>
+            <p><strong>客户：</strong>{{ layoutDetail.username }}</p>
+            <p><strong>联系方式：</strong>{{ layoutDetail.userPhone }} | {{ layoutDetail.userEmail }}</p>
             <button
                 class="chat-btn"
                 @click="openChatWithClient"
@@ -48,11 +48,6 @@
             </button>
           </div>
 
-          <!-- 状态信息 -->
-          <div class="status-info">
-            <p><strong>当前状态：</strong>{{ layoutDetail.furnitureStatus || '未开始' }}</p>
-            <p><strong>创建时间：</strong>{{ layoutDetail.createdAt ? new Date(layoutDetail.createdAt).toLocaleString() : 'N/A' }}</p>
-          </div>
         </div>
 
         <!-- 房间信息展示区域 -->
@@ -76,22 +71,25 @@
               <div class="room-details">
                 <p>面积：{{ room.area }}㎡</p>
                 <p>楼层：{{ room.floorNo }}</p>
-                <p>窗户：{{ room.hasWindow ? '有' : '无' }}</p>
+
                 <div class="detail-row">
-                  <span>阳台：{{ room.hasBalcony ? '有' : '无' }}</span>
+                  <span>窗户：{{ room.hasWindow ? '有' : '无' }}</span>
                   <button
-                    class="view-scheme-btn"
-                    @click="viewSchemes(room)"
-                    v-if="room.hasFurnitureScheme"
+                      class="view-scheme-btn"
+                      @click="viewSchemes(room)"
+                      v-if="room.hasFurnitureScheme"
                   >
                     查看方案
                   </button>
+                </div>
+
+                <div class="detail-row">
+                  <span>阳台：{{ room.hasBalcony ? '有' : '无' }}</span>
                   <button
                     class="edit-scheme-btn"
                     @click="editSchemes(room)"
-                    v-else
                   >
-                    编辑方案
+                    增加方案
                   </button>
                 </div>
               </div>
@@ -206,38 +204,40 @@
             <div class="scheme-editor">
               <div class="scheme-form">
                 <div class="form-group">
-                  <label>方案描述</label>
-                  <textarea
-                    v-model="newScheme.description"
-                    placeholder="描述家具摆放方案..."
-                    rows="4"
-                  ></textarea>
-                </div>
-
-                <div class="form-group">
                   <label>上传方案图片</label>
-                  <label class="file-upload-label">
-                    选择图片
+                  <div class="upload-area" @dragover.prevent @drop="handleImageDrop" @click="triggerImageFileInput">
                     <input
-                      type="file"
-                      class="hidden-file-input"
-                      accept="image/*"
-                      @change="handleImageUpload"
-                      multiple
+                        ref="imageFileInputRef"
+                        type="file"
+                        accept="image/*"
+                        @change="handleImageFileSelect"
+                        class="hidden-file-input"
                     />
-                  </label>
+                    <div class="upload-content">
+                      <div class="upload-icon">📁</div>
+                      <p>拖拽图片到此处或点击上传</p>
+                      <p class="hint">仅支持单张图片上传</p>
+                    </div>
+                  </div>
 
-                  <div class="uploaded-images" v-if="uploadedFiles.length > 0">
-                    <div
-                      v-for="(file, index) in uploadedFiles"
-                      :key="index"
-                      class="uploaded-image"
-                    >
-                      <img :src="URL.createObjectURL(file)" alt="预览" />
-                      <button @click="removeUploadedFile(index)" class="remove-btn">×</button>
+                  <!-- 单张图片预览 -->
+                  <div v-if="uploadedFiles.length > 0" class="single-preview-section">
+                    <h4>已选择的图片</h4>
+                    <div class="single-preview">
+                      <div class="preview-item">
+                        <img :src="uploadedFiles[0].url" alt="预览图" />
+                        <button
+                            class="remove-btn"
+                            @click="clearUploadedFile"
+                            type="button"
+                        >
+                          ×
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
+
 
                 <div class="form-actions">
                   <button type="button" @click="closeEditSchemeDialog" class="btn cancel">取消</button>
@@ -266,10 +266,7 @@
                     <p>状态: {{ scheme.schemeStatus === 'SUBMITTED' ? '已提交' : scheme.schemeStatus }}</p>
                     <p>创建时间: {{ new Date(scheme.createdAt).toLocaleString() }}</p>
                   </div>
-                  <!-- 确认按钮：仅在方案状态为SUBMITTED时显示 -->
-                  <div class="scheme-actions" v-if="scheme.schemeStatus === 'SUBMITTED'">
-                    <button class="confirm-btn" @click="confirmScheme(scheme.schemeId)">确认方案</button>
-                  </div>
+
                 </div>
 
                 <!-- 图片区域 -->
@@ -332,18 +329,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import {onMounted, ref} from 'vue'
+import {useRoute} from 'vue-router'
 import TopNav from "@/layouts/TopNav.vue";
-import { showToast } from '@nutui/nutui'
-import { useLayoutImageStore } from '@/stores/layoutImageStore'
+import {showToast} from '@nutui/nutui'
+import {useLayoutImageStore} from '@/stores/layoutImageStore'
 import {
-  getFurnitureLayoutById,
-  getRoomsByLayout,
-  addRoom as addRoomApi,
-  createFurnitureScheme
+  createFurnitureScheme, createRoom, getDesignerFurnitureLayoutById,
+  getRoomsByLayout, getSchemesByRoom
 } from '@/api/furniture'
-import { getLayoutImages } from "@/api/layoutImage";
+import {getLayoutImages} from "@/api/layoutImage";
 import ChatView from '@/components/ChatView.vue';
 
 // 添加响应式数据
@@ -354,6 +349,7 @@ const route = useRoute()
 const layoutId = Number(route.params.layoutId)
 const imageStore = useLayoutImageStore()
 const BASE_URL = 'http://localhost:8181'
+const imageFileInputRef = ref(null)
 
 // 页面状态
 const layoutDetail = ref(null)
@@ -396,11 +392,55 @@ const urlToFile = async (url, name) => {
   return new File([blob], name, { type: blob.type })
 }
 
+// 图片处理相关方法
+const triggerImageFileInput = () => {
+  imageFileInputRef.value.click()
+}
+
+const handleImageFileSelect = (e) => {
+  const files = Array.from(e.target.files || [])
+  addImageFiles(files)
+}
+
+const handleImageDrop = (e) => {
+  e.preventDefault()
+  const files = Array.from(e.dataTransfer.files || [])
+  addImageFiles(files)
+}
+
+const addImageFiles = (files) => {
+  const validFiles = files.filter(file => file.type.startsWith('image/'))
+
+  if (validFiles.length === 0) {
+    showToast.warn('请选择有效的图片文件')
+    return
+  }
+
+  // 只取第一张图片
+  const file = validFiles[0]
+  const url = URL.createObjectURL(file)
+  const key = `${file.name}-${file.size}-${Date.now()}`
+
+  // 清除现有图片（如果有的话）
+  clearUploadedFile()
+
+  // 添加新图片
+  uploadedFiles.value.push({ file, url, key })
+}
+
+// 清除已上传的文件
+const clearUploadedFile = () => {
+  if (uploadedFiles.value.length > 0) {
+    const img = uploadedFiles.value[0]
+    URL.revokeObjectURL(img.url) // 释放内存
+    uploadedFiles.value = []
+  }
+}
+
 // 加载布局详情
 const loadLayoutDetail = async () => {
   try {
-    const res = await getFurnitureLayoutById(layoutId)
-    layoutDetail.value = res
+    layoutDetail.value = await getDesignerFurnitureLayoutById(layoutId)
 
     // 加载房间信息
     await loadRooms()
@@ -494,6 +534,7 @@ const getRoomStatus = (room) => {
   }
 }
 
+
 // 打开增加房间对话框
 const openAddRoomDialog = () => {
   // 重置表单
@@ -516,7 +557,8 @@ const closeAddRoomDialog = () => {
 // 添加房间
 const addRoom = async () => {
   try {
-    await addRoomApi(layoutId, {
+    await createRoom({
+      layoutId: layoutId,
       roomName: newRoom.value.name,
       roomType: newRoom.value.type,
       area: newRoom.value.area,
@@ -550,34 +592,18 @@ const closeEditSchemeDialog = () => {
   uploadedFiles.value = []
 }
 
-// 处理图片上传
-const handleImageUpload = (event) => {
-  const files = Array.from(event.target.files)
-  uploadedFiles.value.push(...files)
-}
 
-// 移除已上传的文件
-const removeUploadedFile = (index) => {
-  uploadedFiles.value.splice(index, 1)
-}
-
-// 保存方案
 const saveScheme = async () => {
   if (!editingRoom.value) return
 
   if (uploadedFiles.value.length === 0) {
-    showToast.fail('请至少上传一张方案图片')
+    showToast.fail('请上传方案图片')
     return
   }
 
   try {
-    // 这里简化处理，只上传第一张图片
-    const file = uploadedFiles.value[0]
-
-    await createFurnitureScheme(editingRoom.value.roomId, {
-      description: newScheme.value.description,
-      imageFile: file
-    })
+    const file = uploadedFiles.value[0].file
+    await createFurnitureScheme(editingRoom.value.roomId, file)
 
     showToast.success('方案保存成功')
     closeEditSchemeDialog()
@@ -588,18 +614,44 @@ const saveScheme = async () => {
   }
 }
 
+
 // 查看方案方法
 const viewSchemes = async (room) => {
   try {
-    // 这里暂时留空，后续实现
-    console.log('查看房间方案:', room)
-    // const schemes = await getSchemesByRoom(room.roomId)
-    // currentRoomSchemes.value = schemes
-    // currentRoom.value = room
-    // showSchemeModal.value = true
+    const schemes = await getSchemesByRoom(room.roomId)
+    currentRoomSchemes.value = schemes
+    currentRoom.value = room
+
+    // 加载方案图片到缓存
+    await loadSchemeImages(room.roomId, schemes)
+
+    showSchemeModal.value = true
   } catch (error) {
     showToast.fail('加载方案失败')
     console.error(error)
+  }
+}
+
+const loadSchemeImages = async (roomId, schemes) => {
+  const schemeIds = schemes.map(s => s.schemeId)
+  await Promise.all(schemeIds.map(id => loadSingleSchemeImages(id)))
+}
+
+const loadSingleSchemeImages = async (schemeId) => {
+  const scheme = currentRoomSchemes.value.find(s => s.schemeId === schemeId)
+  if (!scheme || !scheme.imageUrl) return
+
+  try {
+    const fullUrl = `http://localhost:8181${scheme.imageUrl}`
+    const file = await urlToFile(fullUrl, `scheme_${schemeId}.jpg`)
+
+    imageStore.setImages(`scheme_${schemeId}`, [{
+      id: scheme.schemeId,
+      url: fullUrl,
+      file: file
+    }])
+  } catch (error) {
+    console.error('Failed to cache image:', error)
   }
 }
 
@@ -907,8 +959,6 @@ onMounted(() => {
 
 .view-scheme-btn, .edit-scheme-btn {
   padding: 4px 8px;
-  background: #409eff;
-  color: #fff;
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -918,9 +968,20 @@ onMounted(() => {
   transition: background 0.3s;
 }
 
-.view-scheme-btn:hover, .edit-scheme-btn:hover {
-  background: #66b1ff;
+.view-scheme-btn {
+  background: #409eff;
+  color: #fff;
 }
+
+.edit-scheme-btn {
+  background: #e6a23c;
+  color: #fff;
+}
+
+.view-scheme-btn:hover, .edit-scheme-btn:hover {
+  filter: brightness(1.1);
+}
+
 
 .edit-scheme-btn {
   background: #e6a23c;
@@ -1371,4 +1432,80 @@ onMounted(() => {
     align-items: flex-start;
   }
 }
+
+.upload-area {
+  border: 2px dashed #dcdfe6;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.3s;
+  margin-top: 8px;
+}
+
+.upload-area:hover {
+  border-color: #409eff;
+}
+
+.upload-content .upload-icon {
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+
+.upload-content p {
+  margin: 5px 0;
+  color: #666;
+}
+
+.hint {
+  font-size: 12px;
+  color: #999;
+}
+
+.hidden-file-input {
+  display: none;
+}
+
+.single-preview-section h4 {
+  margin: 10px 0 8px 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.single-preview {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.preview-item {
+  position: relative;
+  width: 120px;
+  height: 120px;
+}
+
+.preview-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.remove-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: rgba(255,0,0,0.7);
+  border: none;
+  color: #fff;
+  border-radius: 4px;
+  padding: 2px 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.remove-btn:hover {
+  background: rgba(255,0,0,0.9);
+}
+
 </style>

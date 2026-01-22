@@ -89,7 +89,7 @@ const goToFurnitureDesign = (layoutId) => {
 const formatDecorationType = (type) => {
   const types = {
     'FULL': '全包',
-    'SEMIFULL': '半包',
+    'HALF': '半包',
     'LABOR_ONLY': '清包'
   }
   return types[type] || type
