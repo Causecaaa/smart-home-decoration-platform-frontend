@@ -8,7 +8,6 @@ import request from '@/utils/request'
  */
 export function uploadLayoutImage(layoutId, options = {}) {
     const token = localStorage.getItem('token')
-
     const formData = new FormData()
 
     if (options.file) {
