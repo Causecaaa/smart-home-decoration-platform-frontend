@@ -1,9 +1,9 @@
 <!-- src/views/contact/ContactView.vue -->
 <script setup>
-import { ref, onMounted } from 'vue'
+import {onMounted, ref} from 'vue'
 import TopNav from "@/layouts/TopNav.vue"
 import ChatView from '@/components/ChatView.vue'
-import { getChatPartners } from '@/api/message'
+import {getChatPartners} from '@/api/message'
 
 // 页面状态
 const chatPartners = ref([])
@@ -11,14 +11,13 @@ const selectedPartner = ref(null)
 
 // 选择聊天对象时使用userId
 const selectPartner = (partner) => {
-  selectedPartner.value = partner.userId // 使用userId作为目标用户ID
+  selectedPartner.value = partner.partnerId // 使用userId作为目标用户ID
 }
 
 // 获取聊天伙伴列表
 const loadChatPartners = async () => {
   try {
-    const response = await getChatPartners()
-    chatPartners.value = response
+    chatPartners.value = await getChatPartners()
   } catch (error) {
     console.error('获取聊天伙伴失败:', error)
   }
@@ -43,24 +42,29 @@ onMounted(() => {
             <div
                 class="partner-item"
                 v-for="partner in chatPartners"
-                :key="partner.userId"
-                :class="{ active: selectedPartner === partner.userId }"
+                :key="partner.partnerId"
+                :class="{ active: selectedPartner === partner.partnerId }"
                 @click="selectPartner(partner)"
             >
               <div class="partner-avatar">
                 <img
-                    :src="`http://localhost:8181${partner.avatar_url}`"
+                    :src="`http://localhost:8181${partner.partnerAvatar}`"
                     alt="头像"
-                    v-if="partner.avatar_url"
+                    v-if="partner.partnerAvatar"
                 />
-                <div v-else class="default-avatar">{{ partner.userName.charAt(0) }}</div>
+                <div v-else class="default-avatar">{{ partner.partnerName.charAt(0) }}</div>
               </div>
               <div class="partner-info">
-                <div class="partner-name">{{ partner.userName }}</div>
-                <div class="partner-role">{{ partner.role === 'DESIGNER' ? '设计师' : '用户' }}</div>
+                <div class="partner-name">{{ partner.partnerName }}</div>
+                <div class="partner-role">用户</div>
+                <!-- 如果需要显示最后消息 -->
+                <div class="last-message" v-if="partner.lastMessageContent">
+                  {{ partner.lastMessageContent }}
+                </div>
               </div>
             </div>
           </div>
+
         </div>
 
         <!-- 右侧聊天区域 -->
