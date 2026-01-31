@@ -194,60 +194,182 @@
       </div>
 
       <!-- 编辑方案弹窗 -->
-      <div v-if="showEditSchemeDialog" class="overlay" @click.self="closeEditSchemeDialog">
-        <div class="modal large-modal">
-          <div class="modal-header">
-            <span>{{ editingRoom?.roomName }} - 编辑家具方案</span>
-            <span class="close" @click="closeEditSchemeDialog">×</span>
-          </div>
-          <div class="modal-body">
-            <div class="scheme-editor">
-              <div class="scheme-form">
-                <div class="form-group">
-                  <label>上传方案图片</label>
-                  <div class="upload-area" @dragover.prevent @drop="handleImageDrop" @click="triggerImageFileInput">
-                    <input
-                        ref="imageFileInputRef"
-                        type="file"
-                        accept="image/*"
-                        @change="handleImageFileSelect"
-                        class="hidden-file-input"
-                    />
-                    <div class="upload-content">
-                      <div class="upload-icon">📁</div>
-                      <p>拖拽图片到此处或点击上传</p>
-                      <p class="hint">仅支持单张图片上传</p>
-                    </div>
-                  </div>
+<div v-if="showEditSchemeDialog" class="overlay" @click.self="closeEditSchemeDialog">
+  <div class="modal large-modal">
+    <div class="modal-header">
+      <span>{{ editingRoom?.roomName }} - 编辑家具方案</span>
+      <span class="close" @click="closeEditSchemeDialog">×</span>
+    </div>
+    <div class="modal-body">
+      <div class="scheme-editor">
+        <div class="scheme-form">
+          <div class="form-group">
+            <label>上传方案图片</label>
+            <div class="upload-area" @dragover.prevent @drop="handleImageDrop" @click="triggerImageFileInput">
+              <input
+                  ref="imageFileInputRef"
+                  type="file"
+                  accept="image/*"
+                  @change="handleImageFileSelect"
+                  class="hidden-file-input"
+              />
+              <div class="upload-content">
+                <div class="upload-icon">📁</div>
+                <p>拖拽图片到此处或点击上传</p>
+                <p class="hint">仅支持单张图片上传</p>
+              </div>
+            </div>
 
-                  <!-- 单张图片预览 -->
-                  <div v-if="uploadedFiles.length > 0" class="single-preview-section">
-                    <h4>已选择的图片</h4>
-                    <div class="single-preview">
-                      <div class="preview-item">
-                        <img :src="uploadedFiles[0].url" alt="预览图" />
-                        <button
-                            class="remove-btn"
-                            @click="clearUploadedFile"
-                            type="button"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-
-                <div class="form-actions">
-                  <button type="button" @click="closeEditSchemeDialog" class="btn cancel">取消</button>
-                  <button @click="saveScheme" class="btn primary">保存方案</button>
+            <!-- 单张图片预览 -->
+            <div v-if="uploadedFiles.length > 0" class="single-preview-section">
+              <h4>已选择的图片</h4>
+              <div class="single-preview">
+                <div class="preview-item">
+                  <img :src="uploadedFiles[0].url" alt="预览图" />
+                  <button
+                      class="remove-btn"
+                      @click="clearUploadedFile"
+                      type="button"
+                  >
+                    ×
+                  </button>
                 </div>
               </div>
             </div>
           </div>
+
+          <!-- 材料信息字段 -->
+          <div class="form-grid">
+            <div class="form-group">
+              <label>地面材料</label>
+              <select
+                  v-model="newScheme.floorMaterial"
+                  placeholder="请选择地面材料"
+              >
+                <option value="">请选择地面材料</option>
+                <option value="瓷砖">瓷砖</option>
+                <option value="木地板">木地板</option>
+                <option value="复合地板">复合地板</option>
+                <option value="石材">石材</option>
+                <option value="地毯">地毯</option>
+                <option value="水泥自流平">水泥自流平</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>地面面积 (㎡)</label>
+              <input
+                  v-model.number="newScheme.floorArea"
+                  type="number"
+                  placeholder="请输入地面面积"
+                  min="0"
+                  step="0.01"
+              />
+            </div>
+
+            <div class="form-group">
+              <label>墙面材料</label>
+              <select
+                  v-model="newScheme.wallMaterial"
+                  placeholder="请选择墙面材料"
+              >
+                <option value="">请选择墙面材料</option>
+                <option value="乳胶漆">乳胶漆</option>
+                <option value="壁纸">壁纸</option>
+                <option value="硅藻泥">硅藻泥</option>
+                <option value="护墙板">护墙板</option>
+                <option value="瓷砖">瓷砖</option>
+                <option value="艺术涂料">艺术涂料</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>墙面面积 (㎡)</label>
+              <input
+                  v-model.number="newScheme.wallArea"
+                  type="number"
+                  placeholder="请输入墙面面积"
+                  min="0"
+                  step="0.01"
+              />
+            </div>
+
+            <div class="form-group">
+              <label>顶面材料</label>
+              <select
+                  v-model="newScheme.ceilingMaterial"
+                  placeholder="请选择顶面材料"
+              >
+                <option value="">请选择顶面材料</option>
+                <option value="石膏板吊顶">石膏板吊顶</option>
+                <option value="集成吊顶">集成吊顶</option>
+                <option value="PVC吊顶">PVC吊顶</option>
+                <option value="铝扣板吊顶">铝扣板吊顶</option>
+                <option value="原顶刷白">原顶刷白</option>
+                <option value="木饰面吊顶">木饰面吊顶</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>顶面面积 (㎡)</label>
+              <input
+                  v-model.number="newScheme.ceilingArea"
+                  type="number"
+                  placeholder="请输入顶面面积"
+                  min="0"
+                  step="0.01"
+              />
+            </div>
+
+            <div class="form-group">
+              <label>柜体材料</label>
+              <select
+                  v-model="newScheme.cabinetMaterial"
+                  placeholder="请选择柜体材料"
+              >
+                <option value="">请选择柜体材料</option>
+                <option value="实木颗粒板">实木颗粒板</option>
+                <option value="密度板">密度板</option>
+                <option value="多层实木板">多层实木板</option>
+                <option value="生态板">生态板</option>
+                <option value="不锈钢">不锈钢</option>
+                <option value="亚克力">亚克力</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>柜体面积 (㎡)</label>
+              <input
+                  v-model.number="newScheme.cabinetArea"
+                  type="number"
+                  placeholder="请输入柜体面积"
+                  min="0"
+                  step="0.01"
+              />
+            </div>
+          </div>
+
+
+
+          <div class="form-group">
+            <label>备注</label>
+            <textarea
+              v-model="newScheme.remark"
+              placeholder="请输入备注信息"
+              rows="3"
+            ></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" @click="closeEditSchemeDialog" class="btn cancel">取消</button>
+            <button @click="saveScheme" class="btn primary">保存方案</button>
+          </div>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
 
       <!-- 查看方案悬浮窗 -->
       <div v-if="showSchemeModal" class="overlay" @click="closeSchemeModal">
@@ -266,7 +388,30 @@
                     <p>状态: {{ scheme.schemeStatus === 'SUBMITTED' ? '已提交' : scheme.schemeStatus }}</p>
                     <p>创建时间: {{ new Date(scheme.createdAt).toLocaleString() }}</p>
                   </div>
+                </div>
 
+                <!-- 材料信息展示 -->
+                <div class="compact-material-info">
+                  <div class="material-row">
+                    <span class="material-label">地面:</span>
+                    <span class="material-value">{{ scheme.floorMaterial || '-' }} ({{ scheme.floorArea ? scheme.floorArea + '㎡' : '-' }})</span>
+                  </div>
+                  <div class="material-row">
+                    <span class="material-label">墙面:</span>
+                    <span class="material-value">{{ scheme.wallMaterial || '-' }} ({{ scheme.wallArea ? scheme.wallArea + '㎡' : '-' }})</span>
+                  </div>
+                  <div class="material-row">
+                    <span class="material-label">顶面:</span>
+                    <span class="material-value">{{ scheme.ceilingMaterial || '-' }} ({{ scheme.ceilingArea ? scheme.ceilingArea + '㎡' : '-' }})</span>
+                  </div>
+                  <div class="material-row">
+                    <span class="material-label">柜体:</span>
+                    <span class="material-value">{{ scheme.cabinetMaterial || '-' }} ({{ scheme.cabinetArea ? scheme.cabinetArea + '㎡' : '-' }})</span>
+                  </div>
+                  <div class="material-row" v-if="scheme.remark">
+                    <span class="material-label">备注:</span>
+                    <span class="material-value">{{ scheme.remark }}</span>
+                  </div>
                 </div>
 
                 <!-- 图片区域 -->
@@ -289,6 +434,8 @@
           </div>
         </div>
       </div>
+
+
 
       <!-- 图片预览弹窗 -->
       <div v-if="showImagePreview" class="overlay image-preview-overlay" @click="closeImagePreview">
@@ -376,7 +523,15 @@ const newRoom = ref({
 const showEditSchemeDialog = ref(false)
 const editingRoom = ref(null)
 const newScheme = ref({
-  description: ''
+  floorMaterial: '',
+  floorArea: null,
+  wallMaterial: '',
+  wallArea: null,
+  ceilingMaterial: '',
+  ceilingArea: null,
+  cabinetMaterial: '',
+  cabinetArea: null,
+  remark: ''
 })
 const uploadedFiles = ref([])
 
@@ -603,7 +758,7 @@ const saveScheme = async () => {
 
   try {
     const file = uploadedFiles.value[0].file
-    await createFurnitureScheme(editingRoom.value.roomId, file)
+    await createFurnitureScheme(editingRoom.value.roomId, file, newScheme.value)
 
     showToast.success('方案保存成功')
     closeEditSchemeDialog()
@@ -613,6 +768,7 @@ const saveScheme = async () => {
     console.error(error)
   }
 }
+
 
 
 // 查看方案方法
@@ -1432,7 +1588,11 @@ onMounted(() => {
     align-items: flex-start;
   }
 }
-
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
 .upload-area {
   border: 2px dashed #dcdfe6;
   border-radius: 8px;
@@ -1507,5 +1667,38 @@ onMounted(() => {
 .remove-btn:hover {
   background: rgba(255,0,0,0.9);
 }
+
+.compact-material-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+  padding: 8px;
+  background: #f9f9f9;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.material-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 0;
+}
+
+.material-label {
+  font-weight: bold;
+  color: #666;
+  min-width: 50px;
+}
+
+.material-value {
+  color: #333;
+  flex: 1;
+  text-align: right;
+  word-break: break-word;
+  padding-left: 8px;
+}
+
 
 </style>

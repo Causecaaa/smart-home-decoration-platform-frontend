@@ -59,15 +59,27 @@ export function getRoomsByLayout(layoutId) {
 /**
  * 创建家具方案
  */
-export function createFurnitureScheme(roomId, file) {
+/**
+ * 创建家具方案
+ */
+export function createFurnitureScheme(roomId, file, schemeData) {
     const formData = new FormData();
     formData.append('file', file);
+
+    // 添加方案数据
+    Object.keys(schemeData).forEach(key => {
+        if (schemeData[key] !== null && schemeData[key] !== undefined) {
+            formData.append(key, schemeData[key]);
+        }
+    });
+
     return request.post(`/furniture-scheme/room/${roomId}/create`, formData, {
         headers: {
             'Content-Type': 'multipart/form-data'
         }
     })
 }
+
 
 /**
  * 更新方案图片
