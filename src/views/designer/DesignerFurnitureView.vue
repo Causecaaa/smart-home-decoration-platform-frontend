@@ -242,18 +242,16 @@
           <div class="form-grid">
             <div class="form-group">
               <label>地面材料</label>
-              <select
-                  v-model="newScheme.floorMaterial"
-                  placeholder="请选择地面材料"
-              >
+              <select v-model="newScheme.floorMaterial">
                 <option value="">请选择地面材料</option>
-                <option value="瓷砖">瓷砖</option>
-                <option value="木地板">木地板</option>
-                <option value="复合地板">复合地板</option>
-                <option value="石材">石材</option>
-                <option value="地毯">地毯</option>
-                <option value="水泥自流平">水泥自流平</option>
+                <option value="TILES">瓷砖</option>
+                <option value="WOOD_FLOOR">木地板</option>
+                <option value="COMPOSITE_FLOOR">复合地板</option>
+                <option value="STONE">石材</option>
+                <option value="CARPET">地毯</option>
+                <option value="CEMENT_SELF_LEVELING">水泥自流平</option>
               </select>
+
             </div>
 
             <div class="form-group">
@@ -269,18 +267,16 @@
 
             <div class="form-group">
               <label>墙面材料</label>
-              <select
-                  v-model="newScheme.wallMaterial"
-                  placeholder="请选择墙面材料"
-              >
+              <select v-model="newScheme.wallMaterial">
                 <option value="">请选择墙面材料</option>
-                <option value="乳胶漆">乳胶漆</option>
-                <option value="壁纸">壁纸</option>
-                <option value="硅藻泥">硅藻泥</option>
-                <option value="护墙板">护墙板</option>
-                <option value="瓷砖">瓷砖</option>
-                <option value="艺术涂料">艺术涂料</option>
+                <option value="EMULSION_PAINT">乳胶漆</option>
+                <option value="WALLPAPER">壁纸</option>
+                <option value="DIATOM_MUDE">硅藻泥</option>
+                <option value="WALL_PANEL">护墙板</option>
+                <option value="TILES">瓷砖</option>
+                <option value="ARTISTIC_COATING">艺术涂料</option>
               </select>
+
             </div>
 
             <div class="form-group">
@@ -296,18 +292,16 @@
 
             <div class="form-group">
               <label>顶面材料</label>
-              <select
-                  v-model="newScheme.ceilingMaterial"
-                  placeholder="请选择顶面材料"
-              >
+              <select v-model="newScheme.ceilingMaterial">
                 <option value="">请选择顶面材料</option>
-                <option value="石膏板吊顶">石膏板吊顶</option>
-                <option value="集成吊顶">集成吊顶</option>
-                <option value="PVC吊顶">PVC吊顶</option>
-                <option value="铝扣板吊顶">铝扣板吊顶</option>
-                <option value="原顶刷白">原顶刷白</option>
-                <option value="木饰面吊顶">木饰面吊顶</option>
+                <option value="PLASTERBOARD_CEILING">石膏板吊顶</option>
+                <option value="INTEGRATED_CEILING">集成吊顶</option>
+                <option value="PVC_CEILING">PVC吊顶</option>
+                <option value="ALUMINUM_SCREW_CEILING">铝扣板吊顶</option>
+                <option value="ORIGINAL_TOP_BRUSH_WHITE">原顶刷白</option>
+                <option value="WOODEN_DECORATIVE_CEILING">木饰面吊顶</option>
               </select>
+
             </div>
 
             <div class="form-group">
@@ -323,18 +317,16 @@
 
             <div class="form-group">
               <label>柜体材料</label>
-              <select
-                  v-model="newScheme.cabinetMaterial"
-                  placeholder="请选择柜体材料"
-              >
+              <select v-model="newScheme.cabinetMaterial">
                 <option value="">请选择柜体材料</option>
-                <option value="实木颗粒板">实木颗粒板</option>
-                <option value="密度板">密度板</option>
-                <option value="多层实木板">多层实木板</option>
-                <option value="生态板">生态板</option>
-                <option value="不锈钢">不锈钢</option>
-                <option value="亚克力">亚克力</option>
+                <option value="SOLID_WOOD_PARTICLE_BOARD">实木颗粒板</option>
+                <option value="DENSITY_BOARD">密度板</option>
+                <option value="MULTI_LAYER_SOLID_WOOD_BOARD">多层实木板</option>
+                <option value="ECOLOGICAL_BOARD">生态板</option>
+                <option value="STAINLESS_STEEL">不锈钢</option>
+                <option value="ACRYLIC">亚克力</option>
               </select>
+
             </div>
 
             <div class="form-group">
