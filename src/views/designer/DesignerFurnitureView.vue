@@ -57,6 +57,9 @@
             <button class="add-room-btn" @click="openAddRoomDialog">
               + 增加房间
             </button>
+            <button class="add-room-btn" @click="submitFinalDesign">
+              📤 提交最终设计
+            </button>
           </div>
 
           <div class="room-list">
@@ -188,6 +191,9 @@
                 <button type="button" @click="closeAddRoomDialog" class="btn cancel">取消</button>
                 <button type="submit" class="btn primary">添加房间</button>
               </div>
+
+
+
             </form>
           </div>
         </div>
@@ -477,7 +483,7 @@ import {
   createFurnitureScheme, createRoom, getDesignerFurnitureLayoutById,
   getRoomsByLayout, getSchemesByRoom
 } from '@/api/furniture'
-import {getLayoutImages} from "@/api/layoutImage";
+import {getLayoutImages, uploadLayoutImage} from "@/api/layoutImage";
 import ChatView from '@/components/ChatView.vue';
 
 // 添加响应式数据
@@ -629,6 +635,34 @@ const loadLayoutImages = async (layoutId) => {
     console.error('加载布局图片失败:', error)
   }
 }
+
+const submitFinalDesign = async () => {
+  // 创建一个虚拟的 input 元素用于选择文件
+  const fileInput = document.createElement('input')
+  fileInput.type = 'file'
+  fileInput.accept = 'image/*'
+  fileInput.onchange = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    try {
+      // 调用上传图片的 API
+      const res = await uploadLayoutImage(layoutId, {
+        file,
+        imageType: 'FINAL',
+        imageDesc: '最终设计方案'
+      })
+
+      showToast.success('设计方案提交成功')
+      console.log('上传成功:', res)
+    } catch (error) {
+      showToast.fail('提交失败，请稍后重试')
+      console.error('上传失败:', error)
+    }
+  }
+  fileInput.click()
+}
+
 
 const loadAllLayoutImages = async () => {
   if (layoutDetail.value) {

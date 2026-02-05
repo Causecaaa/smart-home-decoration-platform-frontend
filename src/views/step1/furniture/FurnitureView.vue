@@ -160,7 +160,7 @@
           <div class="chat-header">
             <div class="chat-header-info">
               <img
-                  :src="`${BASE_URL}${layoutDetail.avatarUrl || '/uploads/avatar/default.png'}`"
+                  :src="`${BASE_URL}${layoutDetail.avatarUrl }`"
                   alt="设计师头像"
                   class="designer-avatar"
                   @error="onAvatarError"

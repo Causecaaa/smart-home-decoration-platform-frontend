@@ -100,10 +100,6 @@ const formatLayoutType = (type) => {
   return type || '未知户型'
 }
 
-// 图片加载错误处理
-const onImageError = (event) => {
-  event.target.src = '/uploads/avatar/default.png'
-}
 
 onMounted(() => {
   initLoad()
