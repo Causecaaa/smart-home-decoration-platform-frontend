@@ -11,3 +11,4 @@ export function payDepositRequest(billId) {
 export function payFinalRequest(billId) {
     return request.post(`/bill/pay/final/${billId}`)
 }
+1
