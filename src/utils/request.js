@@ -2,7 +2,7 @@ import axios from 'axios'
 import { useUserStore } from '@/stores/userStore'
 
 const request = axios.create({
-    baseURL: 'http://localhost:8181', // 改成你的后端地址
+    baseURL: 'http://192.168.31.47:8181', // 改成你的后端地址
     timeout: 10000
 })
 

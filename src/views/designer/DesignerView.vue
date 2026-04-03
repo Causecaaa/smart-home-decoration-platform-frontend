@@ -25,13 +25,13 @@ const loadPendingLayouts = async () => {
   }
 }
 
-// 获取待处理家具布局任务
+// 获取待处理家居布局任务
 const loadPendingFurnitureLayouts = async () => {
   try {
     const res = await getPendingFurnitureLayouts()
     furnitureLayouts.value = res
   } catch (error) {
-    showToast.fail('加载家具任务失败')
+    showToast.fail('加载家居任务失败')
     console.error(error)
   }
 }
@@ -80,7 +80,7 @@ const goToLayoutDetail = (houseId) => {
   router.push(`/designer/layout/${houseId}`)
 }
 
-// 跳转到家具设计页面
+// 跳转到家居设计页面
 const goToFurnitureDesign = (layoutId) => {
   router.push(`/designer/furniture/${layoutId}`)
 }
@@ -131,7 +131,7 @@ onMounted(() => {
             :class="{ active: activeTab === 'furniture' }"
             @click="switchTab('furniture')"
           >
-            <span>家具设计</span>
+            <span>家居设计</span>
             <span class="count">{{ furnitureLayouts.length }}</span>
           </div>
         </div>
@@ -210,13 +210,13 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- 家具设计任务 -->
+        <!-- 家居设计任务 -->
         <div v-if="activeTab === 'furniture'" class="task-section">
           <div v-if="loading" class="loading">加载中...</div>
 
           <div v-else-if="furnitureLayouts.length === 0" class="empty-state">
             <div class="empty-icon">🪑</div>
-            <p>暂无待处理的家具设计任务</p>
+            <p>暂无待处理的家居设计任务</p>
           </div>
 
           <div v-else class="layout-cards">
@@ -275,7 +275,7 @@ onMounted(() => {
               </div>
 
               <div class="card-footer">
-                <button class="action-btn secondary">开始家具设计</button>
+                <button class="action-btn secondary">开始家居设计</button>
               </div>
             </div>
           </div>

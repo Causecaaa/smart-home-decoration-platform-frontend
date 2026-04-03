@@ -14,9 +14,10 @@ export function getDesignerFurnitureLayoutById(layoutId) {
 /**
  * 分配家具设计师
  */
-export function assignFurnitureDesigner(layoutId, designerId) {
+export function assignFurnitureDesigner(layoutId, designerId, notes = '') {
     return request.put(`/house-layout/${layoutId}/confirm/furnitureDesigner`, {
-        furnitureDesignerId: designerId
+        furnitureDesignerId: designerId,
+        notes: notes
     })
 }
 
@@ -123,4 +124,40 @@ export function getSchemesByRoom(roomId) {
  */
 export function confirmFurnitureScheme(schemeId) {
     return request.put(`/furniture-scheme/${schemeId}/confirm`)
+}
+
+
+/**
+ * 创建房间图片
+ * @param {number} roomId - 房间 ID
+ * @param {File} file - 图片文件
+ * @returns {Promise} 创建后的图片信息
+ */
+export function createRoomImage(roomId, file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return request.post(`/room-image/${roomId}/create`, formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data'
+        }
+    })
+}
+
+/**
+ * 删除房间图片
+ * @param {number} roomImageId - 房间图片 ID
+ * @returns {Promise} 删除结果
+ */
+export function deleteRoomImage(roomImageId) {
+    return request.delete(`/room-image/${roomImageId}/delete`)
+}
+
+/**
+ * 获取房间图片列表
+ * @param {number} roomId - 房间 ID
+ * @returns {Promise} 房间图片列表
+ */
+export function getRoomImages(roomId) {
+    return request.get(`/room-image/${roomId}/list`)
 }

@@ -135,6 +135,17 @@
                 v-model="selectedDesignerId"
                 @select="handleSelectDesigner"
             />
+
+            <!-- 添加备注输入框 -->
+            <div class="notes-section">
+              <label for="designer-notes">备注说明（可选）</label>
+              <textarea
+                  id="designer-notes"
+                  v-model="designerNotes"
+                  placeholder="请输入对设计师的要求或特殊说明..."
+                  rows="4"
+              ></textarea>
+            </div>
           </div>
         </div>
       </div>
@@ -264,6 +275,7 @@ const BASE_URL = 'http://localhost:8181'
 const layoutDetail = ref(null)
 const designers = ref([])
 const selectedDesignerId = ref(null)
+const designerNotes = ref('') // 新增：备注信息
 const showDesignerDialog = ref(false)
 const rooms = ref([])  // 添加房间数组
 
@@ -474,8 +486,8 @@ const getRoomStatus = (room) => {
 // 选择设计师
 const handleSelectDesigner = async (designer) => {
   try {
-    // 调用后端接口分配家具设计师
-    await assignFurnitureDesigner(layoutId, designer.userId)
+    // 调用后端接口分配家具设计师，传入备注信息
+    await assignFurnitureDesigner(layoutId, designer.userId, designerNotes.value)
 
     // 更新本地状态
     selectedDesignerId.value = designer.userId
@@ -494,6 +506,7 @@ const handleSelectDesigner = async (designer) => {
     console.error(error)
   }
 }
+
 
 // 支付定金
 const payDeposit = async (billId) => {
@@ -526,12 +539,14 @@ const payFinalAmount = async (billId) => {
 
 // 打开设计师选择弹窗
 const openDesignerDialog = () => {
+  designerNotes.value = '' // 清空之前的备注
   showDesignerDialog.value = true
 }
 
 // 关闭设计师选择弹窗
 const closeDesignerDialog = () => {
   showDesignerDialog.value = false
+  designerNotes.value = '' // 清空备注
 }
 
 // 确认方案方法

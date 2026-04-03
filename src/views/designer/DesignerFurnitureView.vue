@@ -4,7 +4,7 @@
   <div class="furniture-design-container">
     <div class="furniture-design-content">
       <div class="header">
-        <h2>设计师 - 家具设计</h2>
+        <h2>设计师 - 家居设计</h2>
       </div>
 
       <div class="layout-and-rooms-container">
@@ -22,6 +22,7 @@
             <p><strong>面积：</strong>{{ layoutDetail.area }}㎡</p>
             <p><strong>楼层数：</strong>{{ layoutDetail.floorCount }}层</p>
             <p><strong>装修类型：</strong>{{ formatDecorationType(layoutDetail.decorationType) }}</p>
+            <p v-if="layoutDetail.designNotes"><strong>设计备注：</strong>{{ layoutDetail.designNotes }}</p>
           </div>
 
           <!-- 布局图片展示 -->
@@ -54,12 +55,26 @@
         <div v-if="rooms.length > 0" class="rooms-container">
           <div class="rooms-header">
             <h3>房间信息</h3>
-            <button class="add-room-btn" @click="openAddRoomDialog">
-              + 增加房间
-            </button>
-            <button class="add-room-btn" @click="submitFinalDesign">
-              📤 提交最终设计
-            </button>
+
+            <!-- 未提交时的按钮 -->
+            <template v-if="!layoutDetail?.finalSubmitted">
+              <button class="add-room-btn" @click="openAddRoomDialog">
+                + 增加房间
+              </button>
+              <button
+                  class="add-room-btn"
+                  @click="submitFinalDesign"
+                  v-if="layoutDetail?.furnitureStatus === 'CONFIRMED'"
+              >
+                📤 提交最终设计
+              </button>
+            </template>
+
+            <!-- 已提交后的提示信息 -->
+            <div v-else class="design-completed-hint">
+              <span class="hint-icon">✅</span>
+              <span class="hint-text">设计已完成，请提醒用户支付尾款</span>
+            </div>
           </div>
 
           <div class="room-list">
@@ -73,17 +88,30 @@
 
               <div class="room-details">
                 <p>面积：{{ room.area }}㎡</p>
-                <p>楼层：{{ room.floorNo }}</p>
 
                 <div class="detail-row">
-                  <span>窗户：{{ room.hasWindow ? '有' : '无' }}</span>
+                  <span>楼层：{{ room.floorNo }}</span>
                   <button
                       class="view-scheme-btn"
                       @click="viewSchemes(room)"
                       v-if="room.hasFurnitureScheme"
                   >
+
                     查看方案
                   </button>
+
+                </div>
+
+                <div class="detail-row">
+                  <span>窗户：{{ room.hasWindow ? '有' : '无' }}</span>
+                  <button
+                      class="view-3dscheme-btn"
+                      @click="open3DDesign(room)"
+                      v-if="false"
+                  >
+                    3D 设计
+                  </button>
+
                 </div>
 
                 <div class="detail-row">
@@ -102,7 +130,7 @@
 
         <!-- 空状态 -->
         <p v-if="!layoutDetail" class="no-layout">
-          还没有家具设计信息
+          还没有家居设计信息
         </p>
 
         <!-- 没有房间时的提示 -->
@@ -200,7 +228,7 @@
       <div v-if="showEditSchemeDialog" class="overlay" @click.self="closeEditSchemeDialog">
         <div class="modal large-modal">
           <div class="modal-header">
-            <span>{{ editingRoom?.roomName }} - 编辑家具方案</span>
+            <span>{{ editingRoom?.roomName }} - 编辑家居方案</span>
             <span class="close" @click="closeEditSchemeDialog">×</span>
           </div>
           <div class="modal-body">
@@ -239,6 +267,7 @@
                       </div>
                     </div>
                   </div>
+
                 </div>
 
                 <div class="form-grid">
@@ -455,6 +484,72 @@
         </div>
       </div>
 
+      <!-- 3D 设计悬浮窗 -->
+      <div v-if="show3DDesignModal" class="overlay" @click.self="close3DDesign">
+        <div class="modal large-modal" @click.stop>
+          <div class="modal-header">
+            <span>{{ current3DRoom?.roomName }} - 3D 设计</span>
+            <span class="close" @click="close3DDesign">×</span>
+          </div>
+          <div class="modal-body">
+            <div class="room-images-section">
+              <h4>房间图片</h4>
+
+              <!-- 上传区域 -->
+              <div class="upload-area" @dragover.prevent @drop="handle3DDrop" @click="trigger3DFileInput">
+                <input
+                    ref="roomImageFileInputRef"
+                    type="file"
+                    accept="image/*"
+                    @change="handle3DFileSelect"
+                    class="hidden-file-input"
+                />
+                <div class="upload-content">
+                  <div class="upload-icon">📁</div>
+                  <p>拖拽图片到此处或点击上传</p>
+                  <p class="hint">支持多张图片上传</p>
+                </div>
+              </div>
+
+              <!-- 图片列表 -->
+              <div v-if="roomImages.length > 0" class="room-images-grid">
+                <div v-for="img in roomImages" :key="img.id" class="room-image-item">
+                  <img :src="img.url" alt="房间图片" @click="previewRoomImage(img.url)" />
+                  <button
+                      class="remove-image-btn"
+                      @click="deleteRoomImageById(img.id)"
+                      type="button"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+
+              <!-- 待上传的图片预览 -->
+              <div v-if="uploaded3DFiles.length > 0" class="pending-upload-section">
+                <h4>待上传的图片</h4>
+                <div class="pending-images-grid">
+                  <div v-for="(file, index) in uploaded3DFiles" :key="index" class="pending-image-item">
+                    <img :src="file.url" alt="待上传图片" />
+                    <button
+                        class="remove-pending-btn"
+                        @click="removePending3DFile(index)"
+                        type="button"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+                <button class="upload-all-btn" @click="uploadAllRoomImages">
+                  批量上传
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
       <!-- 图片预览弹窗 -->
       <div v-if="showImagePreview" class="overlay image-preview-overlay" @click="closeImagePreview">
         <div class="modal" @click.stop>
@@ -502,7 +597,7 @@ import {showToast} from '@nutui/nutui'
 import {useLayoutImageStore} from '@/stores/layoutImageStore'
 import {
   createFurnitureScheme, createRoom, getDesignerFurnitureLayoutById,
-  getRoomsByLayout, getSchemesByRoom
+  getRoomsByLayout, getSchemesByRoom, createRoomImage, deleteRoomImage, getRoomImages
 } from '@/api/furniture'
 import {getLayoutImages, uploadLayoutImage} from "@/api/layoutImage";
 import ChatView from '@/components/ChatView.vue';
@@ -516,6 +611,7 @@ const layoutId = Number(route.params.layoutId)
 const imageStore = useLayoutImageStore()
 const BASE_URL = 'http://localhost:8181'
 const imageFileInputRef = ref(null)
+const roomImageFileInputRef = ref(null)
 
 // 页面状态
 const layoutDetail = ref(null)
@@ -526,6 +622,8 @@ const showImagePreview = ref(false)
 const previewImageUrl = ref('')
 const showPreview = ref(false)
 const previewUrl = ref(null)
+
+
 
 // 添加房间相关状态
 const showAddRoomDialog = ref(false)
@@ -571,6 +669,128 @@ const showSchemeModal = ref(false)
 const currentRoomSchemes = ref([])
 const currentRoom = ref(null)
 
+// 3D 设计相关状态
+const show3DDesignModal = ref(false)
+const current3DRoom = ref(null)
+const roomImages = ref([])
+const uploaded3DFiles = ref([])
+
+// 清除已上传的文件
+const clearUploadedFile = () => {
+  if (uploadedFiles.value.length > 0) {
+    const img = uploadedFiles.value[0]
+    URL.revokeObjectURL(img.url) // 释放内存
+    uploadedFiles.value = []
+  }
+}
+
+// 3D 设计相关方法
+const open3DDesign = async (room) => {
+  current3DRoom.value = room
+  uploaded3DFiles.value = []
+  await loadRoomImages(room.roomId)
+  show3DDesignModal.value = true
+}
+
+const close3DDesign = () => {
+  show3DDesignModal.value = false
+  current3DRoom.value = null
+  uploaded3DFiles.value = []
+}
+
+const trigger3DFileInput = () => {
+  roomImageFileInputRef.value.click()
+}
+
+const handle3DFileSelect = (e) => {
+  const files = Array.from(e.target.files || [])
+  add3DFiles(files)
+}
+
+const handle3DDrop = (e) => {
+  e.preventDefault()
+  const files = Array.from(e.dataTransfer.files || [])
+  add3DFiles(files)
+}
+
+const add3DFiles = (files) => {
+  const validFiles = files.filter(file => file.type.startsWith('image/'))
+
+  if (validFiles.length === 0) {
+    showToast.warn('请选择有效的图片文件')
+    return
+  }
+
+  validFiles.forEach(file => {
+    const url = URL.createObjectURL(file)
+    uploaded3DFiles.value.push({ file, url })
+  })
+}
+
+const removePending3DFile = (index) => {
+  const file = uploaded3DFiles.value[index]
+  URL.revokeObjectURL(file.url)
+  uploaded3DFiles.value.splice(index, 1)
+}
+
+const loadRoomImages = async (roomId) => {
+  try {
+    const images = await getRoomImages(roomId)
+    console.log('后端返回的图片数据:', images) // 调试日志
+
+    roomImages.value = images.map(img => ({
+      id: img.roomImageId,
+      url: BASE_URL + img.imageUrl,
+      roomId: img.roomId
+    }))
+
+    console.log('处理后的图片数据:', roomImages.value) // 调试日志
+  } catch (error) {
+    console.error('加载房间图片失败:', error)
+    roomImages.value = []
+  }
+}
+
+const uploadAllRoomImages = async () => {
+  if (!current3DRoom.value) return
+
+  if (uploaded3DFiles.value.length === 0) {
+    showToast.warn('请选择要上传的图片')
+    return
+  }
+
+  try {
+    const uploadPromises = uploaded3DFiles.value.map(async (item) => {
+      await createRoomImage(current3DRoom.value.roomId, item.file)
+    })
+
+    await Promise.all(uploadPromises)
+
+    showToast.success('图片上传成功')
+    uploaded3DFiles.value = []
+    await loadRoomImages(current3DRoom.value.roomId)
+  } catch (error) {
+    showToast.fail('上传失败，请稍后重试')
+    console.error('上传失败:', error)
+  }
+}
+
+const deleteRoomImageById = async (imageId) => {
+  try {
+    await deleteRoomImage(imageId)
+    showToast.success('删除成功')
+    await loadRoomImages(current3DRoom.value.roomId)
+  } catch (error) {
+    showToast.fail('删除失败，请稍后重试')
+    console.error('删除失败:', error)
+  }
+}
+
+const previewRoomImage = (url) => {
+  previewImageUrl.value = url
+  showImagePreview.value = true
+}
+
 // 工具函数：URL转File
 const urlToFile = async (url, name) => {
   const res = await fetch(url)
@@ -614,14 +834,7 @@ const addImageFiles = (files) => {
   uploadedFiles.value.push({ file, url, key })
 }
 
-// 清除已上传的文件
-const clearUploadedFile = () => {
-  if (uploadedFiles.value.length > 0) {
-    const img = uploadedFiles.value[0]
-    URL.revokeObjectURL(img.url) // 释放内存
-    uploadedFiles.value = []
-  }
-}
+
 
 // 加载布局详情
 const loadLayoutDetail = async () => {
@@ -669,6 +882,7 @@ const loadLayoutImages = async (layoutId) => {
   }
 }
 
+
 const submitFinalDesign = async () => {
   // 创建一个虚拟的 input 元素用于选择文件
   const fileInput = document.createElement('input')
@@ -688,6 +902,9 @@ const submitFinalDesign = async () => {
 
       showToast.success('设计方案提交成功')
       console.log('上传成功:', res)
+
+      // 刷新页面数据
+      await loadLayoutDetail()
     } catch (error) {
       showToast.fail('提交失败，请稍后重试')
       console.error('上传失败:', error)
@@ -1096,6 +1313,26 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 
+.design-completed-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #f0f9eb;
+  border-radius: 6px;
+  color: #67c23a;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.hint-icon {
+  font-size: 18px;
+}
+
+.hint-text {
+  color: #67c23a;
+}
+
 .rooms-header h3 {
   margin: 0;
   font-size: 16px;
@@ -1231,11 +1468,28 @@ onMounted(() => {
   white-space: nowrap;
   height: 26px;
   transition: background 0.3s;
+  outline: none; /* 移除默认轮廓 */
+  box-shadow: none; /* 移除默认阴影 */
 }
 
 .view-scheme-btn {
   background: #409eff;
   color: #fff;
+}
+
+.view-3dscheme-btn {
+  background: #b340ff;
+  color: #fff;
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
+
+.view-3dscheme-btn:hover {
+  filter: brightness(1.1);
+  border: none;
+  outline: none;
+  box-shadow: none;
 }
 
 .edit-scheme-btn {
@@ -1809,6 +2063,133 @@ onMounted(() => {
   word-break: break-word;
   padding-left: 8px;
 }
+.remove-btn:hover {
+  background: rgba(255,0,0,0.9);
+}
 
+.room-images-section h4 {
+  margin: 16px 0 12px 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.room-images-grid {
+  display: flex;
+  justify-content: center; /* 居中排列 */
+  flex-wrap: wrap; /* 允许换行 */
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.room-image-item {
+  position: relative;
+  width: 120px; /* 固定宽度 */
+  height: 120px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #ddd;
+}
+
+
+.room-image-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: pointer;
+}
+
+.room-image-item img:hover {
+  opacity: 0.9;
+}
+
+.remove-image-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,0,0,0.7);
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: background 0.3s;
+}
+
+.remove-image-btn:hover {
+  background: rgba(255,0,0,0.9);
+}
+
+.pending-upload-section h4 {
+  margin: 16px 0 12px 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.pending-images-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.pending-image-item {
+  position: relative;
+  width: 100%;
+  height: 100px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #ddd;
+}
+
+.pending-image-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-pending-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,0,0,0.7);
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: background 0.3s;
+}
+
+.remove-pending-btn:hover {
+  background: rgba(255,0,0,0.9);
+}
+
+.upload-all-btn {
+  margin-top: 16px;
+  padding: 10px 20px;
+  background: #52c41a;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s;
+}
+
+.upload-all-btn:hover {
+  background: #73d13d;
+}
 
 </style>

@@ -23,6 +23,8 @@
           </div>
 
           <p>状态：{{ LAYOUT_STATUS_MAP[draftLayout.layoutStatus] }}</p>
+          <p v-if="draftLayout.redesignNotes"><strong>设计需求：</strong>{{ draftLayout.redesignNotes }}</p>
+
 
           <!-- 显示用户信息 -->
           <div class="user-info">
